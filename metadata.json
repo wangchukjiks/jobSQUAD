@@ -1,0 +1,8 @@
+{
+  "name": "JobSQUAD",
+  "description": "Multilingual recruitment, house rentals, car rentals, and local sales marketplace connecting employers, property owners, and job seekers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

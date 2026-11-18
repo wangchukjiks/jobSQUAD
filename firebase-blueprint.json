@@ -1,0 +1,207 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account profile containing contact PII and role metadata.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Authentication UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full display name of the registered user.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified account email address.",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "description": "User mobile phone number.",
+          "minLength": 6,
+          "maxLength": 40
+        },
+        "accountType": {
+          "type": "string",
+          "description": "Self-selected community classification.",
+          "enum": ["seeker", "employer", "lister"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "email",
+        "phone",
+        "accountType",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Server-managed administrator membership document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 160
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Listing": {
+      "title": "Listing",
+      "description": "Marketplace listing for Recruitment vacancies, House rentals, Car rentals, or Sales items.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase UID of the listing author.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerName": {
+          "type": "string",
+          "description": "Display name of employer, owner, or seller.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "type": {
+          "type": "string",
+          "description": "Listing vertical.",
+          "enum": ["job", "house", "car", "sale"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Category key such as babysitting, restaurant, construction, cleaning, elderly_care, companion, apartment, villa, sedan, suv, electronics, furniture, appliances.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "title": {
+          "type": "string",
+          "description": "Listing headline.",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "description": {
+          "type": "string",
+          "description": "Full listing details.",
+          "minLength": 10,
+          "maxLength": 3000
+        },
+        "location": {
+          "type": "string",
+          "description": "City or neighborhood.",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "priceEur": {
+          "type": "number",
+          "description": "Base amount in EUR converted dynamically per selected language currency."
+        },
+        "contactEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "contactPhone": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40
+        },
+        "images": {
+          "type": "array",
+          "description": "Array of compressed image data URLs or asset paths (1-3 required for house, car, sale)."
+        },
+        "specs": {
+          "type": "object",
+          "description": "Structured metadata map (bedrooms, transmission, condition, employmentType, etc.)."
+        },
+        "translations": {
+          "type": "object",
+          "description": "Localized translations keyed by zh, en, fr, es, dz, gsw."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "closed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "ownerName",
+        "type",
+        "category",
+        "title",
+        "description",
+        "location",
+        "priceEur",
+        "contactEmail",
+        "contactPhone",
+        "images",
+        "specs",
+        "translations",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Private user profiles isolated by owner UID and admin access."
+    },
+    "/admins/{adminId}": {
+      "schema": {
+        "$ref": "#/entities/AdminRecord"
+      },
+      "description": "Trusted administrator lookup registry."
+    },
+    "/listings/{listingId}": {
+      "schema": {
+        "$ref": "#/entities/Listing"
+      },
+      "description": "Publicly browsable recruitment, house rental, car rental, and sales marketplace posts."
+    }
+  }
+}

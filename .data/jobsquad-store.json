@@ -1,0 +1,37 @@
+{
+  "users": [
+    {
+      "uid": "admin_wangchukjiks",
+      "email": "wangchukjiks@gmail.com",
+      "displayName": "JobSQUAD Administrator",
+      "phone": "+33 759163133",
+      "accountType": "employer",
+      "isAdmin": true,
+      "passwordSalt": "cd884c01104c6ab57304b2a2e2a99be7",
+      "passwordHash": "c7b79b31a36d7d9a568c4354eb79e132dbb6707dcfa24c692e2abe440f89d52961fa0bfa5aaa957bc18a182e36b49f99790fe26dd5d62a7610eab710fe3880b7",
+      "createdAt": 1795029268915
+    }
+  ],
+  "listings": [],
+  "deletedIds": [],
+  "inquiries": [
+    {
+      "id": "inq_f0cde7a231b87cd3",
+      "name": "Test Renter",
+      "email": "renter@example.com",
+      "phone": "+33 7 00 00 00 00",
+      "subject": "[Listing Inquiry -> owner@example.com] Bright 2-Bedroom Apartment near Zurich HB",
+      "message": "Hello, I would like to schedule a viewing for this apartment.",
+      "createdAt": 1795035318236
+    },
+    {
+      "id": "inq_b9728ca1dc1392f3",
+      "name": "Test Renter",
+      "email": "renter@example.com",
+      "phone": "+33 7 00 00 00 00",
+      "subject": "[Listing Inquiry -> owner@example.com] Bright 2-Bedroom Apartment near Zurich HB",
+      "message": "Hello, I would like to schedule a viewing for this apartment.",
+      "createdAt": 1795035281717
+    }
+  ]
+}
