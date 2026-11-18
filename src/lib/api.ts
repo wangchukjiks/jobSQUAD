@@ -9,24 +9,66 @@ import type {
 let cachedCsrfToken: string | null = null;
 let inMemorySessionToken: string | null = null;
 
+async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  retries = 2
+): Promise<Response> {
+  let lastResponse: Response | null = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(input, init);
+      if (
+        (res.status === 502 || res.status === 503 || res.status === 504) &&
+        attempt < retries
+      ) {
+        lastResponse = res;
+        await new Promise((resolve) => setTimeout(resolve, 650));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      if (attempt >= retries) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 650));
+    }
+  }
+  return lastResponse!;
+}
+
 async function parseJsonSafe<T>(res: Response): Promise<T> {
   const raw = await res.text();
   const trimmed = raw.trim();
   if (!trimmed || trimmed.startsWith('<')) {
+    if (res.status === 413) {
+      throw new Error('Uploaded images are too large. Please upload fewer or smaller images.');
+    }
+    if (res.url && res.url.includes('accounts.google.com')) {
+      throw new Error('Preview authentication session expired. Please refresh the page and try again.');
+    }
+    if (res.status >= 500) {
+      throw new Error(
+        `Application server is restarting or temporarily unavailable (HTTP ${res.status}). Please retry in a moment.`
+      );
+    }
+    if (res.status === 404) {
+      throw new Error(
+        'Backend API endpoint not found (HTTP 404). Please open the live development server URL.'
+      );
+    }
     throw new Error(
-      'Backend API returned an unexpected response. Please verify the application server is running.'
+      `Unexpected HTML response received from server (HTTP ${res.status}). Please refresh the page and verify the server is running.`
     );
   }
   try {
     return JSON.parse(trimmed) as T;
   } catch {
-    throw new Error('Invalid JSON response received from server.');
+    throw new Error(`Invalid JSON response received from server (HTTP ${res.status}).`);
   }
 }
 
 export async function ensureCsrfToken(forceRefresh = false): Promise<string> {
   if (cachedCsrfToken && !forceRefresh) return cachedCsrfToken;
-  const res = await fetch('/api/csrf-token', { credentials: 'include' });
+  const res = await fetchWithRetry('/api/csrf-token', { credentials: 'include', cache: 'no-store' });
   const data = await parseJsonSafe<{ csrfToken: string }>(res);
   if (!res.ok || !data.csrfToken) {
     throw new Error('Unable to initialize security session.');
@@ -48,7 +90,7 @@ async function postProtected<T>(url: string, body: unknown): Promise<T> {
     return headers;
   };
 
-  let res = await fetch(url, {
+  let res = await fetchWithRetry(url, {
     method: 'POST',
     credentials: 'include',
     headers: buildHeaders(token),
@@ -57,7 +99,7 @@ async function postProtected<T>(url: string, body: unknown): Promise<T> {
 
   if (res.status === 403) {
     token = await ensureCsrfToken(true);
-    res = await fetch(url, {
+    res = await fetchWithRetry(url, {
       method: 'POST',
       credentials: 'include',
       headers: buildHeaders(token),
@@ -85,7 +127,7 @@ async function requestProtected<T>(method: 'PUT' | 'DELETE', url: string, body?:
     return headers;
   };
 
-  let res = await fetch(url, {
+  let res = await fetchWithRetry(url, {
     method,
     credentials: 'include',
     headers: buildHeaders(token),
@@ -94,7 +136,7 @@ async function requestProtected<T>(method: 'PUT' | 'DELETE', url: string, body?:
 
   if (res.status === 403) {
     token = await ensureCsrfToken(true);
-    res = await fetch(url, {
+    res = await fetchWithRetry(url, {
       method,
       credentials: 'include',
       headers: buildHeaders(token),
@@ -110,7 +152,7 @@ async function requestProtected<T>(method: 'PUT' | 'DELETE', url: string, body?:
 }
 
 export async function fetchCaptchaChallenge(): Promise<{ question: string; token: string }> {
-  const res = await fetch(`/api/captcha?t=${Date.now()}`, {
+  const res = await fetchWithRetry(`/api/captcha?t=${Date.now()}`, {
     credentials: 'include',
     cache: 'no-store',
   });
@@ -287,7 +329,7 @@ export async function sendListingInquiry(input: {
   return postProtected('/api/listing-inquiry', input);
 }
 
-export function compressImageToDataUrl(file: File, maxDimension = 800, quality = 0.72): Promise<string> {
+export function compressImageToDataUrl(file: File, maxDimension = 680, quality = 0.65): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
       reject(new Error('Only image files are permitted.'));
@@ -320,8 +362,8 @@ export function compressImageToDataUrl(file: File, maxDimension = 800, quality =
         }
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        if (dataUrl.length > 420000) {
-          resolve(canvas.toDataURL('image/jpeg', 0.58));
+        if (dataUrl.length > 220000) {
+          resolve(canvas.toDataURL('image/jpeg', 0.48));
         } else {
           resolve(dataUrl);
         }
