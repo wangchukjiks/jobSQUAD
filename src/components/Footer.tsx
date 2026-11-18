@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Download, Mail, MapPin, Phone } from 'lucide-react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 import { UI_TEXT } from '../i18n/translations.ts';
 import type { SupportedLang } from '../types/index.ts';
 
@@ -10,32 +9,6 @@ interface FooterProps {
 
 export function Footer({ lang, onOpenContact }: FooterProps) {
   const t = UI_TEXT[lang];
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState('');
-
-  const handleDownloadProject = async () => {
-    setDownloading(true);
-    setDownloadError('');
-    try {
-      const res = await fetch('/api/download-project', { credentials: 'include' });
-      if (!res.ok) {
-        throw new Error('Archive unavailable.');
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'jobsquad-project.zip';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-    } catch {
-      setDownloadError('Download blocked in embedded preview — use the AI Studio Download Project button in the top bar.');
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   return (
     <footer className="bg-[#050C18] border-t border-slate-800/80 pt-14 pb-10">
@@ -54,22 +27,6 @@ export function Footer({ lang, onOpenContact }: FooterProps) {
             <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
               {t.footerTagline}
             </p>
-            <div>
-              <button
-                type="button"
-                onClick={handleDownloadProject}
-                disabled={downloading}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#D9A438]/45 bg-[#0B1628] text-xs font-semibold text-[#D9A438] hover:bg-[#13223A] transition-colors disabled:opacity-60 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>{downloading ? 'Preparing ZIP...' : 'Download Source (.zip)'}</span>
-              </button>
-              {downloadError && (
-                <p className="mt-2 text-xs text-amber-300 leading-relaxed max-w-xs">
-                  {downloadError}
-                </p>
-              )}
-            </div>
           </div>
 
           {/* Direct Contact Details */}
@@ -80,11 +37,11 @@ export function Footer({ lang, onOpenContact }: FooterProps) {
             <ul className="space-y-2.5 text-sm text-slate-300">
               <li>
                 <a
-                  href="mailto:jigsonbusyness@gmail.com"
+                  href="mailto:contact.jobsquad@gmail.com"
                   className="inline-flex items-center gap-2 hover:text-[#D9A438] transition-colors"
                 >
                   <Mail className="w-4 h-4 text-[#D9A438] shrink-0" />
-                  <span>jigsonbusyness@gmail.com</span>
+                  <span>contact.jobsquad@gmail.com</span>
                 </a>
               </li>
               <li>

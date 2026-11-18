@@ -600,23 +600,6 @@ async function startServer() {
     }
   });
 
-  // Project archive download endpoint (both dev and production)
-  const serveProjectZip = (_req: express.Request, res: express.Response) => {
-    const publicZip = path.resolve(__dirname, 'public', 'jobsquad-project.zip');
-    const distZip = path.resolve(__dirname, 'dist', 'jobsquad-project.zip');
-    const zipPath = fs.existsSync(publicZip) ? publicZip : distZip;
-    if (!fs.existsSync(zipPath)) {
-      res.status(404).json({ error: 'Project zip archive not found.' });
-      return;
-    }
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename="jobsquad-project.zip"');
-    res.setHeader('Cache-Control', 'no-store');
-    res.sendFile(zipPath);
-  };
-  app.get('/jobsquad-project.zip', serveProjectZip);
-  app.get('/api/download-project', serveProjectZip);
-
   // Never allow /api/* routes to fall through to SPA HTML index.html
   app.all('/api/*', (_req, res) => {
     res.status(404).json({ error: 'API endpoint not found.' });
