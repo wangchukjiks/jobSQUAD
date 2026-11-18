@@ -98,7 +98,15 @@ export function AuthModal({
     try {
       await signInWithGooglePopup();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign-in failed.');
+      const msg = err instanceof Error ? err.message : 'Google sign-in failed.';
+      if (msg.includes('auth/unauthorized-domain')) {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+        setError(
+          `Google Sign-In is not yet authorized for "${host}". Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains, or register / log in with Email & Password above.`
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
