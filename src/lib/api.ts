@@ -52,7 +52,7 @@ async function parseJsonSafe<T>(res: Response): Promise<T> {
     }
     if (res.status === 404) {
       throw new Error(
-        'Backend API endpoint not found (HTTP 404). Please open the live development server URL.'
+        'Backend API endpoint not found (HTTP 404). Make sure you are using the live Development App URL or have republished the Shared App with the Node.js server.'
       );
     }
     throw new Error(
