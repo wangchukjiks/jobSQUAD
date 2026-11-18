@@ -23,12 +23,14 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [staticMailtoUrl, setStaticMailtoUrl] = useState('');
   const [success, setSuccess] = useState(false);
   const [deliveryNote, setDeliveryNote] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setError('');
+    setStaticMailtoUrl('');
     setSuccess(false);
     setDeliveryNote('');
     setCaptchaQuestion('');
@@ -52,6 +54,7 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setStaticMailtoUrl('');
     setDeliveryNote('');
     setSubmitting(true);
 
@@ -68,6 +71,9 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
 
       if (!result.delivered) {
         setError(result.note || 'Email could not be delivered by the mail service.');
+        if (result.staticFallback && result.mailtoUrl) {
+          setStaticMailtoUrl(result.mailtoUrl);
+        }
         await refreshChallenge();
         return;
       }
@@ -139,8 +145,17 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
               </p>
 
               {error && (
-                <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-xs text-rose-200">
-                  {error}
+                <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-xs text-rose-200 space-y-2.5">
+                  <p>{error}</p>
+                  {staticMailtoUrl && (
+                    <a
+                      href={staticMailtoUrl}
+                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md bg-[#D9A438] text-[#071121] font-semibold hover:bg-[#E5B34B] transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Open Email App</span>
+                    </a>
+                  )}
                 </div>
               )}
 

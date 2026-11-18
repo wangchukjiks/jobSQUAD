@@ -33,6 +33,7 @@ export function ListingDetailModal({
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [staticMailtoUrl, setStaticMailtoUrl] = useState('');
   const [sentSuccess, setSentSuccess] = useState(false);
   const [deliveryNote, setDeliveryNote] = useState('');
 
@@ -40,6 +41,7 @@ export function ListingDetailModal({
     setActiveImageIdx(0);
     setComposerOpen(false);
     setError('');
+    setStaticMailtoUrl('');
     setSentSuccess(false);
     setDeliveryNote('');
     setCaptchaQuestion('');
@@ -107,6 +109,7 @@ export function ListingDetailModal({
   const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setStaticMailtoUrl('');
     setDeliveryNote('');
     setSubmitting(true);
 
@@ -126,6 +129,9 @@ export function ListingDetailModal({
 
       if (!result.delivered) {
         setError(result.note || 'Email could not be delivered to the owner right now.');
+        if (result.staticFallback && result.mailtoUrl) {
+          setStaticMailtoUrl(result.mailtoUrl);
+        }
         await refreshChallenge();
         return;
       }
@@ -420,8 +426,17 @@ export function ListingDetailModal({
                 ) : (
                   <form onSubmit={handleSendInquiry} className="space-y-3.5">
                     {error && (
-                      <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-3.5 py-2.5 text-xs text-rose-200">
-                        {error}
+                      <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-3.5 py-2.5 text-xs text-rose-200 space-y-2">
+                        <p>{error}</p>
+                        {staticMailtoUrl && (
+                          <a
+                            href={staticMailtoUrl}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#D9A438] text-[#071121] font-semibold hover:bg-[#E5B34B] transition-colors"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Open Email App</span>
+                          </a>
+                        )}
                       </div>
                     )}
 
