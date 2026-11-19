@@ -82,6 +82,7 @@ export function ListingFormModal({
   const [location, setLocation] = useState('');
   const [priceEur, setPriceEur] = useState('0');
   const [employmentType, setEmploymentType] = useState('Full-Time');
+  const [restaurantName, setRestaurantName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [description, setDescription] = useState('');
@@ -119,6 +120,10 @@ export function ListingFormModal({
       setLocation(editingListing.location);
       setPriceEur(editingListing.type === 'job' ? '0' : String(editingListing.priceEur ?? 0));
       setEmploymentType(editingListing.specs?.employmentType || 'Full-Time');
+      setRestaurantName(
+        editingListing.specs?.restaurantName ||
+          (editingListing.category === 'restaurant' ? editingListing.ownerName : '')
+      );
       setContactEmail(editingListing.contactEmail);
       setContactPhone(editingListing.contactPhone);
       setDescription(editingListing.description);
@@ -140,6 +145,7 @@ export function ListingFormModal({
       setLocation('');
       setPriceEur('0');
       setEmploymentType('Full-Time');
+      setRestaurantName('');
       setContactEmail(user?.email || '');
       setContactPhone(user?.phone || '');
       setDescription('');
@@ -230,8 +236,17 @@ export function ListingFormModal({
     }
     const specs: ListingSpecs = {
       employmentType,
+      ...(category === 'restaurant' && restaurantName.trim()
+        ? { restaurantName: restaurantName.trim() }
+        : {}),
     };
-    return { specs, summary: employmentType };
+    return {
+      specs,
+      summary:
+        category === 'restaurant' && restaurantName.trim()
+          ? `${restaurantName.trim()} · ${employmentType}`
+          : employmentType,
+    };
   };
 
   const refreshCaptcha = async () => {
@@ -249,6 +264,10 @@ export function ListingFormModal({
     e.preventDefault();
     setError('');
 
+    if (type === 'job' && category === 'restaurant' && restaurantName.trim().length < 2) {
+      setError(`${t.specsLabels.restaurantName} is required.`);
+      return;
+    }
     if (contactPhone.trim().length < 6) {
       setError(t.listingModal.phoneRequiredNote);
       return;
@@ -332,9 +351,13 @@ export function ListingFormModal({
         }
       } else {
         const newId = `post_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const resolvedOwnerName =
+          type === 'job' && category === 'restaurant' && restaurantName.trim()
+            ? restaurantName.trim()
+            : user.displayName;
         const payload: Omit<Listing, 'id' | 'createdAt' | 'updatedAt' | 'isSeeded'> = {
           ownerId: user.uid,
-          ownerName: user.displayName,
+          ownerName: resolvedOwnerName,
           type,
           category,
           title: cleanTitle,
@@ -464,6 +487,24 @@ export function ListingFormModal({
               </select>
             </div>
           </div>
+
+          {isJob && category === 'restaurant' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">
+                {t.specsLabels.restaurantName} <span className="text-[#D9A438]">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                minLength={2}
+                maxLength={120}
+                value={restaurantName}
+                onChange={(e) => setRestaurantName(e.target.value)}
+                placeholder="Bistro Lumière"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438]"
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-300">{t.listingModal.titleLabel}</label>

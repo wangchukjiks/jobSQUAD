@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, CheckCircle2, Mail, MapPin, Phone, Send, Share2, X } from 'lucide-react';
+import { Check, CheckCircle2, Copy, ExternalLink, Mail, MapPin, Phone, Send, Share2, X } from 'lucide-react';
 import { formatLocalizedPrice, UI_TEXT } from '../i18n/translations.ts';
 import { fetchCaptchaChallenge, sendListingInquiry } from '../lib/api.ts';
 import type { Listing, SupportedLang, UserProfile } from '../types/index.ts';
@@ -33,7 +33,8 @@ export function ListingDetailModal({
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [staticMailtoUrl, setStaticMailtoUrl] = useState('');
+  const [fallbackUrls, setFallbackUrls] = useState<{ mailto: string; gmail: string } | null>(null);
+  const [copiedFallback, setCopiedFallback] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
   const [deliveryNote, setDeliveryNote] = useState('');
 
@@ -41,7 +42,8 @@ export function ListingDetailModal({
     setActiveImageIdx(0);
     setComposerOpen(false);
     setError('');
-    setStaticMailtoUrl('');
+    setFallbackUrls(null);
+    setCopiedFallback(false);
     setSentSuccess(false);
     setDeliveryNote('');
     setCaptchaQuestion('');
@@ -106,10 +108,33 @@ export function ListingDetailModal({
     }
   };
 
+  const buildFallbackUrls = () => {
+    const subj = encodeURIComponent(`[JobSQUAD] Inquiry: ${title}`);
+    const body = encodeURIComponent(
+      `Hello ${listing.ownerName},\n\n${message.trim()}\n\nFrom: ${senderName.trim()} (${senderEmail.trim()}${senderPhone.trim() ? `, ${senderPhone.trim()}` : ''})`
+    );
+    return {
+      mailto: `mailto:${listing.contactEmail}?subject=${subj}&body=${body}`,
+      gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(listing.contactEmail)}&su=${subj}&body=${body}`,
+    };
+  };
+
+  const handleCopyFallback = async () => {
+    const content = `To: ${listing.contactEmail}\nSubject: [JobSQUAD] Inquiry: ${title}\n\nHello ${listing.ownerName},\n\n${message.trim()}\n\nFrom: ${senderName.trim()} (${senderEmail.trim()}${senderPhone.trim() ? `, ${senderPhone.trim()}` : ''})`;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedFallback(true);
+      setTimeout(() => setCopiedFallback(false), 2400);
+    } catch {
+      // Ignore clipboard failure
+    }
+  };
+
   const handleSendInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setStaticMailtoUrl('');
+    setFallbackUrls(null);
+    setCopiedFallback(false);
     setDeliveryNote('');
     setSubmitting(true);
 
@@ -128,10 +153,12 @@ export function ListingDetailModal({
       });
 
       if (!result.delivered) {
+        const computed = buildFallbackUrls();
         setError(result.note || 'Email could not be delivered to the owner right now.');
-        if (result.staticFallback && result.mailtoUrl) {
-          setStaticMailtoUrl(result.mailtoUrl);
-        }
+        setFallbackUrls({
+          mailto: result.mailtoUrl || computed.mailto,
+          gmail: result.gmailUrl || computed.gmail,
+        });
         await refreshChallenge();
         return;
       }
@@ -142,7 +169,11 @@ export function ListingDetailModal({
       setCaptchaQuestion('');
       setCaptchaToken('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to send email to owner.');
+      const msg = err instanceof Error ? err.message : 'Unable to send email to owner.';
+      setError(msg);
+      if (!/captcha|valid email|complete your name/i.test(msg)) {
+        setFallbackUrls(buildFallbackUrls());
+      }
       await refreshChallenge();
     } finally {
       setSubmitting(false);
@@ -426,16 +457,45 @@ export function ListingDetailModal({
                 ) : (
                   <form onSubmit={handleSendInquiry} className="space-y-3.5">
                     {error && (
-                      <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-3.5 py-2.5 text-xs text-rose-200 space-y-2">
-                        <p>{error}</p>
-                        {staticMailtoUrl && (
-                          <a
-                            href={staticMailtoUrl}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#D9A438] text-[#071121] font-semibold hover:bg-[#E5B34B] transition-colors"
-                          >
-                            <Send className="w-3.5 h-3.5" />
-                            <span>Open Email App</span>
-                          </a>
+                      <div className="rounded-lg border border-amber-500/40 bg-amber-950/35 px-3.5 py-2.5 text-xs text-amber-100 space-y-2.5">
+                        <p className="leading-relaxed">{error}</p>
+                        {fallbackUrls && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <a
+                              href={fallbackUrls.gmail}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#D9A438] text-[#071121] font-semibold hover:bg-[#E5B34B] transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Open in Gmail</span>
+                            </a>
+                            <a
+                              href={fallbackUrls.mailto}
+                              target="_top"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-600 bg-[#0F1D33] text-slate-100 font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>Open Email App</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={handleCopyFallback}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-700 bg-[#0F1D33] text-slate-200 font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer"
+                            >
+                              {copiedFallback ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Copied</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Copy Message</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -513,6 +573,7 @@ export function ListingDetailModal({
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                       <a
                         href={`mailto:${listing.contactEmail}?subject=${mailSubject}&body=${mailBody}`}
+                        target="_top"
                         className="text-xs text-slate-400 hover:text-[#D9A438] underline"
                       >
                         {listing.contactEmail}

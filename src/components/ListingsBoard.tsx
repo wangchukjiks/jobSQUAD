@@ -280,6 +280,13 @@ export function ListingsBoard({
                         {loc.title}
                       </h3>
 
+                      {item.category === 'restaurant' && (
+                        <p className="text-xs font-medium text-amber-200/95">
+                          <span className="text-slate-400">{t.specsLabels.restaurantName}: </span>
+                          <span>{item.specs?.restaurantName || item.ownerName}</span>
+                        </p>
+                      )}
+
                       <div className="flex items-center gap-3 text-sm">
                         <span className="inline-flex items-center gap-1.5 text-slate-400 truncate">
                           <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />

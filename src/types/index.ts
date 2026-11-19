@@ -15,6 +15,7 @@ export type TranslationBundle = Record<SupportedLang, TranslatedListingContent>;
 
 export interface ListingSpecs {
   employmentType?: string;
+  restaurantName?: string;
   bedrooms?: number;
   bathrooms?: number;
   areaSqm?: number;

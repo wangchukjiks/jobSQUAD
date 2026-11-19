@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, Send, X } from 'lucide-react';
+import { Check, CheckCircle2, Copy, ExternalLink, Mail, Send, X } from 'lucide-react';
 import { UI_TEXT } from '../i18n/translations.ts';
 import { fetchCaptchaChallenge, submitContactInquiry } from '../lib/api.ts';
 import type { SupportedLang } from '../types/index.ts';
@@ -10,6 +10,8 @@ interface ContactModalProps {
   lang: SupportedLang;
   onClose: () => void;
 }
+
+const CONTACT_EMAIL = 'contact.jobsquad@gmail.com';
 
 export function ContactModal({ open, lang, onClose }: ContactModalProps) {
   const t = UI_TEXT[lang];
@@ -23,14 +25,16 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [staticMailtoUrl, setStaticMailtoUrl] = useState('');
+  const [fallbackUrls, setFallbackUrls] = useState<{ mailto: string; gmail: string } | null>(null);
+  const [copiedFallback, setCopiedFallback] = useState(false);
   const [success, setSuccess] = useState(false);
   const [deliveryNote, setDeliveryNote] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setError('');
-    setStaticMailtoUrl('');
+    setFallbackUrls(null);
+    setCopiedFallback(false);
     setSuccess(false);
     setDeliveryNote('');
     setCaptchaQuestion('');
@@ -51,10 +55,33 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
     }
   };
 
+  const buildFallbackUrls = () => {
+    const mailtoSubject = encodeURIComponent(`[JobSQUAD Contact] ${subject.trim() || 'Inquiry'}`);
+    const mailtoBody = encodeURIComponent(
+      `Name: ${name.trim()}\nEmail: ${email.trim()}\nPhone: ${phone.trim() || 'N/A'}\n\n${message.trim()}`
+    );
+    return {
+      mailto: `mailto:${CONTACT_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`,
+      gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(CONTACT_EMAIL)}&su=${mailtoSubject}&body=${mailtoBody}`,
+    };
+  };
+
+  const handleCopyFallback = async () => {
+    const content = `To: ${CONTACT_EMAIL}\nSubject: [JobSQUAD Contact] ${subject.trim()}\nFrom: ${name.trim()} (${email.trim()}${phone.trim() ? `, ${phone.trim()}` : ''})\n\n${message.trim()}`;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedFallback(true);
+      setTimeout(() => setCopiedFallback(false), 2400);
+    } catch {
+      // Ignore clipboard failure
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setStaticMailtoUrl('');
+    setFallbackUrls(null);
+    setCopiedFallback(false);
     setDeliveryNote('');
     setSubmitting(true);
 
@@ -70,10 +97,12 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
       });
 
       if (!result.delivered) {
+        const computed = buildFallbackUrls();
         setError(result.note || 'Email could not be delivered by the mail service.');
-        if (result.staticFallback && result.mailtoUrl) {
-          setStaticMailtoUrl(result.mailtoUrl);
-        }
+        setFallbackUrls({
+          mailto: result.mailtoUrl || computed.mailto,
+          gmail: result.gmailUrl || computed.gmail,
+        });
         await refreshChallenge();
         return;
       }
@@ -87,7 +116,11 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
       setMessage('');
       setCaptchaAnswer('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to send message.');
+      const msg = err instanceof Error ? err.message : 'Unable to send message.';
+      setError(msg);
+      if (!/captcha|complete all required/i.test(msg)) {
+        setFallbackUrls(buildFallbackUrls());
+      }
       await refreshChallenge();
     } finally {
       setSubmitting(false);
@@ -97,6 +130,7 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
   const handleClose = () => {
     setSuccess(false);
     setError('');
+    setFallbackUrls(null);
     setDeliveryNote('');
     onClose();
   };
@@ -145,16 +179,45 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
               </p>
 
               {error && (
-                <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-xs text-rose-200 space-y-2.5">
-                  <p>{error}</p>
-                  {staticMailtoUrl && (
-                    <a
-                      href={staticMailtoUrl}
-                      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md bg-[#D9A438] text-[#071121] font-semibold hover:bg-[#E5B34B] transition-colors"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Open Email App</span>
-                    </a>
+                <div className="rounded-lg border border-amber-500/40 bg-amber-950/35 px-4 py-3 text-xs text-amber-100 space-y-3">
+                  <p className="leading-relaxed">{error}</p>
+                  {fallbackUrls && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={fallbackUrls.gmail}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-[#D9A438] text-[#071121] font-semibold hover:bg-[#E5B34B] transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Open in Gmail</span>
+                      </a>
+                      <a
+                        href={fallbackUrls.mailto}
+                        target="_top"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-slate-600 bg-[#0A1527] text-slate-100 font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>Open Email App</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleCopyFallback}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-700 bg-[#0A1527] text-slate-200 font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer"
+                      >
+                        {copiedFallback ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Message</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
               )}

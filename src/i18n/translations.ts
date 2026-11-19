@@ -120,6 +120,7 @@ export interface UIStrings {
     brand: string;
     location: string;
     postedBy: string;
+    restaurantName: string;
   };
   contactModal: {
     title: string;
@@ -282,6 +283,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: '品牌',
       location: '地点',
       postedBy: '发布者',
+      restaurantName: '餐厅名称',
     },
     contactModal: {
       title: '联系管理员',
@@ -442,6 +444,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Brand',
       location: 'Location',
       postedBy: 'Posted by',
+      restaurantName: 'Restaurant Name',
     },
     contactModal: {
       title: 'Contact Administrator',
@@ -602,6 +605,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Marque',
       location: 'Lieu',
       postedBy: 'Publié par',
+      restaurantName: 'Nom du restaurant',
     },
     contactModal: {
       title: 'Contacter l’administrateur',
@@ -762,6 +766,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Marca',
       location: 'Ubicación',
       postedBy: 'Publicado por',
+      restaurantName: 'Nombre del restaurante',
     },
     contactModal: {
       title: 'Contactar al administrador',
@@ -922,6 +927,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'ཚོང་རྟགས།',
       location: 'ས་གནས།',
       postedBy: 'སྤེལ་མི།',
+      restaurantName: 'ཟ་ཁང་གི་མིང་།',
     },
     contactModal: {
       title: 'བདག་སྐྱོང་པ་ལུ་འབྲེལ་བ་འཐབ།',
@@ -1082,6 +1088,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Marke',
       location: 'Ort',
       postedBy: 'Inseriert vo',
+      restaurantName: 'Name vom Restaurant',
     },
     contactModal: {
       title: 'Administrator kontaktiere',

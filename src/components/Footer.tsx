@@ -38,6 +38,7 @@ export function Footer({ lang, onOpenContact }: FooterProps) {
               <li>
                 <a
                   href="mailto:contact.jobsquad@gmail.com"
+                  target="_top"
                   className="inline-flex items-center gap-2 hover:text-[#D9A438] transition-colors"
                 >
                   <Mail className="w-4 h-4 text-[#D9A438] shrink-0" />

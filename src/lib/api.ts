@@ -555,6 +555,7 @@ export async function submitContactInquiry(input: {
   sandboxForwarded?: boolean;
   staticFallback?: boolean;
   mailtoUrl?: string;
+  gmailUrl?: string;
   messageId?: string;
   note?: string;
 }> {
@@ -565,6 +566,7 @@ export async function submitContactInquiry(input: {
     if (!verifyLocalCaptcha(input.captchaToken, input.captchaAnswer)) {
       throw new Error('CAPTCHA verification failed. Please try again.');
     }
+    const recipient = 'contact.jobsquad@gmail.com';
     const mailtoSubject = encodeURIComponent(`[JobSQUAD Contact] ${input.subject}`);
     const mailtoBody = encodeURIComponent(
       `Name: ${input.name}\nEmail: ${input.email}\nPhone: ${input.phone || 'N/A'}\n\n${input.message}`
@@ -573,8 +575,9 @@ export async function submitContactInquiry(input: {
       ok: true,
       delivered: false,
       staticFallback: true,
-      mailtoUrl: `mailto:contact.jobsquad@gmail.com?subject=${mailtoSubject}&body=${mailtoBody}`,
-      note: 'This static preview does not run the Node.js Resend server. Use the email button below or open the live Development App URL for automated delivery.',
+      mailtoUrl: `mailto:${recipient}?subject=${mailtoSubject}&body=${mailtoBody}`,
+      gmailUrl: `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${mailtoSubject}&body=${mailtoBody}`,
+      note: 'Automated server delivery is only active on the live Development App URL. Use Open in Gmail, Open Email App, or Copy below to send your message directly.',
     };
   }
 }
@@ -598,6 +601,7 @@ export async function sendListingInquiry(input: {
   sandboxForwarded?: boolean;
   staticFallback?: boolean;
   mailtoUrl?: string;
+  gmailUrl?: string;
   messageId?: string;
   note?: string;
 }> {
@@ -617,7 +621,8 @@ export async function sendListingInquiry(input: {
       delivered: false,
       staticFallback: true,
       mailtoUrl: `mailto:${input.ownerEmail}?subject=${mailtoSubject}&body=${mailtoBody}`,
-      note: 'This static preview does not run the Node.js Resend server. Click below to open your email app directly to the owner, or use the live Development App URL for automated delivery.',
+      gmailUrl: `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(input.ownerEmail)}&su=${mailtoSubject}&body=${mailtoBody}`,
+      note: 'Automated server delivery is only active on the live Development App URL. Use Open in Gmail, Open Email App, or Copy below to email the owner directly.',
     };
   }
 }
