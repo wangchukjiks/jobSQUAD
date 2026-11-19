@@ -301,17 +301,9 @@ async function startServer() {
     }
   });
 
-  // Server-backed Listings CRUD (supports email/password accounts, synced Google sessions & admin management)
-  app.get('/api/listings', (req, res) => {
-    const session = readSessionFromRequest(req);
+  // Server-backed Listings CRUD (public read, owner/admin write)
+  app.get('/api/listings', (_req, res) => {
     const data = getAllServerListings();
-    if (session && !session.isAdmin) {
-      res.json({
-        listings: data.listings.filter((item) => item.ownerId === session.uid),
-        deletedIds: data.deletedIds,
-      });
-      return;
-    }
     res.json(data);
   });
 
@@ -643,8 +635,17 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(distDir));
+    app.use(
+      express.static(distDir, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+          }
+        },
+      })
+    );
     app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }

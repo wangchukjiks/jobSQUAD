@@ -6,6 +6,7 @@ import {
   Eye,
   MapPin,
   Phone,
+  Plus,
   Share2,
   Trash2,
   User as UserIcon,
@@ -17,6 +18,9 @@ import { ImageSlider } from './ImageSlider.tsx';
 interface ListingsBoardProps {
   lang: SupportedLang;
   listings: Listing[];
+  selectedJobCat: string;
+  onChangeJobCat: (cat: string) => void;
+  onOpenPostLookingForJob: () => void;
   rentalsSubtab: 'house' | 'car';
   onChangeRentalsSubtab: (tab: 'house' | 'car') => void;
   currentUserId: string | null;
@@ -35,11 +39,15 @@ const JOB_CATEGORIES = [
   'cleaning',
   'elderly_care',
   'companion',
+  'looking_for_job',
 ];
 
 export function ListingsBoard({
   lang,
   listings,
+  selectedJobCat,
+  onChangeJobCat,
+  onOpenPostLookingForJob,
   rentalsSubtab,
   onChangeRentalsSubtab,
   currentUserId,
@@ -51,7 +59,6 @@ export function ListingsBoard({
   onDeleteListing,
 }: ListingsBoardProps) {
   const t = UI_TEXT[lang];
-  const [selectedJobCat, setSelectedJobCat] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const recruitmentSectionRef = useRef<HTMLElement | null>(null);
@@ -66,20 +73,16 @@ export function ListingsBoard({
   useEffect(() => {
     const updateFloatingPosition = () => {
       const sentinel = filterSentinelRef.current;
-      const section = recruitmentSectionRef.current;
       const bar = filterBarRef.current;
-      if (!sentinel || !section) return;
+      if (!sentinel) return;
 
       const headerEl = document.querySelector('header');
       const headerHeight = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 100;
       const sentinelRect = sentinel.getBoundingClientRect();
-      const sectionRect = section.getBoundingClientRect();
       const barHeight = bar ? Math.round(bar.getBoundingClientRect().height) : 54;
 
-      const shouldFloat =
-        sentinelRect.top <= headerHeight + 8 &&
-        sectionRect.bottom > headerHeight + barHeight + 28;
-      const nextTop = headerHeight + 8;
+      const shouldFloat = sentinelRect.top <= headerHeight;
+      const nextTop = headerHeight;
 
       setFloatingMenu((prev) => {
         const nextHeight = shouldFloat ? barHeight : prev.placeholderHeight;
@@ -101,27 +104,54 @@ export function ListingsBoard({
     updateFloatingPosition();
     window.addEventListener('scroll', updateFloatingPosition, { passive: true });
     window.addEventListener('resize', updateFloatingPosition);
+
+    const headerEl = document.querySelector('header');
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => updateFloatingPosition())
+        : null;
+    if (resizeObserver && headerEl) {
+      resizeObserver.observe(headerEl);
+    }
+    if (resizeObserver && filterBarRef.current) {
+      resizeObserver.observe(filterBarRef.current);
+    }
+    document.fonts?.ready?.then(() => updateFloatingPosition()).catch(() => {});
+
     return () => {
       window.removeEventListener('scroll', updateFloatingPosition);
       window.removeEventListener('resize', updateFloatingPosition);
+      resizeObserver?.disconnect();
     };
   }, [lang, activeScope, listings.length]);
 
-  const scopedListings = listings.filter((item) => {
-    if (currentUserId && !isAdmin) {
-      return item.ownerId === currentUserId;
+  const handleSelectJobCategory = (cat: string) => {
+    onChangeJobCat(cat);
+    const section = recruitmentSectionRef.current;
+    const headerEl = document.querySelector('header');
+    const headerHeight = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 100;
+    if (section) {
+      const rect = section.getBoundingClientRect();
+      if (rect.bottom < headerHeight + 90 || rect.top > window.innerHeight * 0.7) {
+        section.scrollIntoView({ behavior: 'smooth' });
+      }
     }
+  };
+
+  const scopedListings = listings.filter((item) => {
     if (activeScope === 'mine' && currentUserId) {
       return item.ownerId === currentUserId;
     }
     return true;
   });
 
-  const jobListings = scopedListings.filter(
-    (item) =>
-      item.type === 'job' &&
-      (selectedJobCat === 'all' || item.category === selectedJobCat)
-  );
+  const jobListings = scopedListings.filter((item) => {
+    if (item.type !== 'job') return false;
+    if (selectedJobCat === 'all') {
+      return activeScope === 'mine' ? true : item.category !== 'looking_for_job';
+    }
+    return item.category === selectedJobCat;
+  });
   const houseListings = scopedListings.filter((item) => item.type === 'house');
   const carListings = scopedListings.filter((item) => item.type === 'car');
   const salesListings = scopedListings.filter((item) => item.type === 'sale');
@@ -198,7 +228,7 @@ export function ListingsBoard({
             </div>
           </div>
 
-          {/* Interactive Job Category Filter Bar (Becomes Floating Menu below header on scroll) */}
+          {/* Interactive Job Category Filter Bar (Attaches directly below website menu bar while scrolling until the end) */}
           <div
             ref={filterSentinelRef}
             style={floatingMenu.active ? { minHeight: floatingMenu.placeholderHeight } : undefined}
@@ -206,7 +236,7 @@ export function ListingsBoard({
             <div
               className={
                 floatingMenu.active
-                  ? 'fixed left-0 right-0 z-30 px-4 sm:px-6 lg:px-8 transition-all duration-150'
+                  ? 'fixed left-0 right-0 z-30 border-b border-[#D9A438]/40 bg-[#071121]/95 backdrop-blur-md shadow-xl transition-all duration-150'
                   : ''
               }
               style={floatingMenu.active ? { top: floatingMenu.top } : undefined}
@@ -215,13 +245,13 @@ export function ListingsBoard({
                 ref={filterBarRef}
                 className={
                   floatingMenu.active
-                    ? 'max-w-7xl mx-auto flex items-center gap-2 p-1.5 rounded-xl bg-[#091529]/95 backdrop-blur-md border border-[#D9A438]/45 shadow-2xl overflow-x-auto sm:flex-wrap'
+                    ? 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center gap-2 overflow-x-auto sm:flex-wrap'
                     : 'flex flex-wrap items-center gap-2 p-1.5 rounded-xl bg-[#0B1628] border border-slate-800/90'
                 }
               >
                 <button
                   type="button"
-                  onClick={() => setSelectedJobCat('all')}
+                  onClick={() => handleSelectJobCategory('all')}
                   className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     selectedJobCat === 'all'
                       ? 'bg-[#D9A438] text-[#071121]'
@@ -234,7 +264,7 @@ export function ListingsBoard({
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => setSelectedJobCat(cat)}
+                    onClick={() => handleSelectJobCategory(cat)}
                     className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                       selectedJobCat === cat
                         ? 'bg-[#D9A438] text-[#071121]'
@@ -248,6 +278,22 @@ export function ListingsBoard({
             </div>
           </div>
 
+          {selectedJobCat === 'looking_for_job' && (
+            <div className="jobsquad-surface rounded-xl px-5 py-4 border-[#D9A438]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <p className="text-sm text-slate-200 leading-relaxed">
+                {t.lookingForJobLead}
+              </p>
+              <button
+                type="button"
+                onClick={onOpenPostLookingForJob}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#D9A438] text-[#071121] text-xs font-bold uppercase tracking-wide hover:bg-[#E5B34B] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{t.postLookingForJob}</span>
+              </button>
+            </div>
+          )}
+
           {jobListings.length === 0 ? (
             <div className="jobsquad-surface rounded-xl p-10 text-center text-sm text-slate-400">
               {t.noListings}
@@ -257,6 +303,19 @@ export function ListingsBoard({
               {jobListings.map((item) => {
                 const loc = getLocalized(item);
                 const phoneDisplay = item.contactPhone || '+33 759163133';
+                const isLookingForJobPost = item.category === 'looking_for_job';
+                const categoryLabel = t.categories[item.category] || item.category;
+                const restaurantLabel = isLookingForJobPost
+                  ? ''
+                  : (
+                      item.specs?.restaurantName ||
+                      (item.category === 'restaurant' ? item.ownerName : '') ||
+                      ''
+                    ).trim();
+                const scheduleLabel = item.isSeeded
+                  ? loc.specsSummary || item.specs?.employmentType || ''
+                  : item.specs?.employmentType || loc.specsSummary || '';
+
                 return (
                   <article
                     key={item.id}
@@ -264,38 +323,40 @@ export function ListingsBoard({
                     className="jobsquad-surface jobsquad-card-hover rounded-xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 w-full"
                   >
                     <div className="flex-1 min-w-0 space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
-                        <span className="text-[#D9A438] font-medium">
-                          {t.categories[item.category] || item.category}
+                      {/* Row 1: Subcategory (- Restaurant name when applicable), Location/City, Schedule (slightly larger font) */}
+                      <div className="flex items-center gap-x-3 gap-y-1 text-[15px] sm:text-base font-medium flex-wrap">
+                        <span className="text-[#D9A438] font-semibold">
+                          {categoryLabel}
+                          {restaurantLabel
+                            ? ` - ${t.specsLabels.restaurantName}: ${restaurantLabel}`
+                            : ''}
                         </span>
-                        {loc.specsSummary && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span>{loc.specsSummary}</span>
-                          </>
-                        )}
-                        <span aria-hidden="true">·</span>
-                        <span className="inline-flex items-center gap-1.5 text-slate-400">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span className="text-slate-500" aria-hidden="true">·</span>
+                        <span className="inline-flex items-center gap-1.5 text-slate-200">
+                          <MapPin className="w-4 h-4 text-[#D9A438]/85 shrink-0" />
                           <span>{loc.location}</span>
                         </span>
+                        {scheduleLabel && (
+                          <>
+                            <span className="text-slate-500" aria-hidden="true">·</span>
+                            <span className="text-amber-200">{scheduleLabel}</span>
+                          </>
+                        )}
                       </div>
 
-                      <h3 className="text-lg sm:text-xl font-semibold text-slate-50 leading-snug">
-                        {loc.title}
-                      </h3>
-
-                      {item.category === 'restaurant' && (
-                        <p className="text-xs font-medium text-amber-200/95">
-                          <span className="text-slate-400">{t.specsLabels.restaurantName}: </span>
-                          <span>{item.specs?.restaurantName || item.ownerName}</span>
-                        </p>
+                      {/* Row 2: Title (omitted for Looking for Job posts since Job Title is removed) */}
+                      {!isLookingForJobPost && (
+                        <h3 className="text-lg sm:text-xl font-semibold text-slate-50 leading-snug">
+                          {loc.title}
+                        </h3>
                       )}
 
+                      {/* Row 3: Detailed Description */}
                       <p className="text-sm text-slate-300 leading-relaxed">
                         {loc.description}
                       </p>
 
+                      {/* Row 4: Posted by and Posted on */}
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-1 text-xs text-slate-400">
                         <span className="inline-flex items-center gap-1.5">
                           <UserIcon className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
@@ -418,7 +479,7 @@ export function ListingsBoard({
               {t.noListings}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeRentalItems.map((item) => {
                 const loc = getLocalized(item);
                 return (
@@ -434,9 +495,9 @@ export function ListingsBoard({
                       emptyLabel={loc.title}
                     />
 
-                    <div className="p-6 flex-1 flex flex-col justify-between gap-4">
+                    <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
                       <div className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
                           <span>
                             <span className="text-[#D9A438] font-medium">
                               {t.categories[item.category] || item.category}

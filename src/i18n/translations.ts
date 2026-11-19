@@ -83,6 +83,7 @@ export interface UIStrings {
   navSales: string;
   registerLogin: string;
   postListing: string;
+  postLookingForJob: string;
   myPosts: string;
   adminPanel: string;
   signOut: string;
@@ -99,6 +100,7 @@ export interface UIStrings {
   aboutCards: { title: string; body: string }[];
   recruitmentHeading: string;
   recruitmentLead: string;
+  lookingForJobLead: string;
   allCategories: string;
   categories: Record<string, string>;
   rentalsHeading: string;
@@ -177,11 +179,13 @@ export interface UIStrings {
     editTitle: string;
     type: string;
     typeJob: string;
+    typeLookingForJob: string;
     typeHouse: string;
     typeCar: string;
     typeSale: string;
     category: string;
     titleLabel: string;
+    jobTitleLabel: string;
     locationLabel: string;
     priceEurLabel: string;
     emailLabel: string;
@@ -218,6 +222,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navSales: '本地集市',
     registerLogin: '注册 / 登录',
     postListing: '发布信息',
+    postLookingForJob: '发布求职信息 (LOOKING FOR JOB)',
     myPosts: '我的发布',
     adminPanel: '管理员控制台',
     signOut: '退出登录',
@@ -249,6 +254,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     ],
     recruitmentHeading: '招聘职位',
     recruitmentLead: '按行业分类浏览雇主发布的实时岗位，直接发送邮件与雇主取得联系或分享职位。',
+    lookingForJobLead: '求职者可在此发布个人求职信息，方便雇主直接联系。',
     allCategories: '全部职位',
     categories: {
       babysitting: '育儿保姆',
@@ -257,6 +263,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       cleaning: '专业保洁',
       elderly_care: '长者照护',
       companion: '陪护服务',
+      looking_for_job: 'LOOKING FOR JOB · 求职',
       apartment: '精品公寓',
       villa: '家庭别墅',
       sedan: '豪华轿车',
@@ -341,12 +348,14 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       editTitle: '编辑信息',
       type: '信息类型',
       typeJob: '招聘职位',
+      typeLookingForJob: 'Looking for Job（求职）',
       typeHouse: '房屋出租',
       typeCar: '汽车租赁',
       typeSale: '物品出售',
       category: '所属分类',
       titleLabel: '信息标题',
-      locationLabel: '所在城市 / 地址',
+      jobTitleLabel: '职位名称',
+      locationLabel: '所在城市',
       priceEurLabel: '金额基准（欧元 EUR，前台自动换算当地货币）',
       emailLabel: '联系邮箱',
       phoneLabel: '手机号码',
@@ -380,6 +389,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navSales: 'Sales',
     registerLogin: 'Register / Log In',
     postListing: 'Post Listing',
+    postLookingForJob: 'Post Looking for Job',
     myPosts: 'My Posts',
     adminPanel: 'Admin Console',
     signOut: 'Sign Out',
@@ -411,6 +421,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     ],
     recruitmentHeading: 'Recruitment Vacancies',
     recruitmentLead: 'Select a category below to browse active openings, email employers directly, or share posts.',
+    lookingForJobLead: 'Job seekers can publish looking-for-job posts below so employers can contact them directly.',
     allCategories: 'All Roles',
     categories: {
       babysitting: 'Babysitting',
@@ -419,6 +430,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       cleaning: 'Cleaning',
       elderly_care: 'Elderly Care',
       companion: 'Hire Companion',
+      looking_for_job: 'LOOKING FOR JOB',
       apartment: 'Apartment',
       villa: 'Family House',
       sedan: 'Sedan',
@@ -503,12 +515,14 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       editTitle: 'Edit Listing',
       type: 'Listing Category',
       typeJob: 'Job Vacancy',
+      typeLookingForJob: 'Looking for Job',
       typeHouse: 'House Rental',
       typeCar: 'Car Rental',
       typeSale: 'Sale Item',
       category: 'Subcategory',
       titleLabel: 'Title',
-      locationLabel: 'Location',
+      jobTitleLabel: 'Job Title',
+      locationLabel: 'City',
       priceEurLabel: 'Base Amount (EUR — converted automatically per language)',
       emailLabel: 'Contact Email',
       phoneLabel: 'Mobile Number',
@@ -542,6 +556,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navSales: 'Ventes',
     registerLogin: 'Inscription / Connexion',
     postListing: 'Publier une annonce',
+    postLookingForJob: 'Publier : LOOKING FOR JOB',
     myPosts: 'Mes annonces',
     adminPanel: 'Administration',
     signOut: 'Déconnexion',
@@ -573,6 +588,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     ],
     recruitmentHeading: 'Offres d’emploi',
     recruitmentLead: 'Filtrez par catégorie, envoyez un e-mail direct à l’employeur ou partagez une annonce.',
+    lookingForJobLead: 'Les chercheurs d’emploi peuvent publier leur annonce ici pour être contactés directement.',
     allCategories: 'Toutes les catégories',
     categories: {
       babysitting: 'Baby-sitting',
@@ -581,6 +597,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       cleaning: 'Nettoyage',
       elderly_care: 'Aide aux aînés',
       companion: 'Compagnonnage',
+      looking_for_job: 'LOOKING FOR JOB',
       apartment: 'Appartement',
       villa: 'Maison',
       sedan: 'Berline',
@@ -665,12 +682,14 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       editTitle: 'Modifier l’annonce',
       type: 'Type d’annonce',
       typeJob: 'Offre d’emploi',
+      typeLookingForJob: 'Looking for Job (Recherche d’emploi)',
       typeHouse: 'Location Maison',
       typeCar: 'Location Voiture',
       typeSale: 'Vente',
       category: 'Catégorie',
       titleLabel: 'Titre',
-      locationLabel: 'Ville / Quartier',
+      jobTitleLabel: 'Intitulé du poste',
+      locationLabel: 'Ville',
       priceEurLabel: 'Montant de base (EUR)',
       emailLabel: 'E-mail de contact',
       phoneLabel: 'Numéro de mobile',
@@ -704,6 +723,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navSales: 'Ventas',
     registerLogin: 'Registro / Acceso',
     postListing: 'Publicar anuncio',
+    postLookingForJob: 'Publicar: LOOKING FOR JOB',
     myPosts: 'Mis anuncios',
     adminPanel: 'Panel Admin',
     signOut: 'Salir',
@@ -735,6 +755,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     ],
     recruitmentHeading: 'Vacantes de empleo',
     recruitmentLead: 'Filtra por sector, envía un correo directo al empleador o comparte la oferta.',
+    lookingForJobLead: 'Quienes buscan empleo pueden publicar aquí su disponibilidad para que los empleadores los contacten.',
     allCategories: 'Todas',
     categories: {
       babysitting: 'Niñera / Cuidado',
@@ -743,6 +764,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       cleaning: 'Limpieza',
       elderly_care: 'Cuidado mayores',
       companion: 'Acompañante',
+      looking_for_job: 'LOOKING FOR JOB',
       apartment: 'Apartamento',
       villa: 'Casa familiar',
       sedan: 'Sedán',
@@ -827,12 +849,14 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       editTitle: 'Editar anuncio',
       type: 'Tipo',
       typeJob: 'Vacante de empleo',
+      typeLookingForJob: 'Looking for Job (Busco empleo)',
       typeHouse: 'Alquiler de casa',
       typeCar: 'Alquiler de coche',
       typeSale: 'Artículo en venta',
       category: 'Categoría',
       titleLabel: 'Título',
-      locationLabel: 'Ubicación',
+      jobTitleLabel: 'Título del puesto',
+      locationLabel: 'Ciudad',
       priceEurLabel: 'Importe base (EUR)',
       emailLabel: 'Correo de contacto',
       phoneLabel: 'Número móvil',
@@ -866,6 +890,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navSales: 'ཉོ་ཚོང་ཁྲོམ།',
     registerLogin: 'ཐོ་བཀོད་ / ནང་བསྐྱོད།',
     postListing: 'གསལ་བསྒྲགས་སྤེལ།',
+    postLookingForJob: 'LOOKING FOR JOB སྤེལ།',
     myPosts: 'ངེད་ཀྱི་གསལ་བསྒྲགས།',
     adminPanel: 'བདག་སྐྱོང་པ།',
     signOut: 'ཕྱིར་ཐོན།',
@@ -897,6 +922,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     ],
     recruitmentHeading: 'གཡོག་བསྡུའི་གསལ་བསྒྲགས།',
     recruitmentLead: 'གཡོག་གི་དབྱེ་བ་གདམ་ཁ་རྐྱབས་ཏེ་ གཡོག་བདག་ལུ་ཡིག་འཕྲིན་གཏང་གནང་།',
+    lookingForJobLead: 'གཡོག་འཚོལ་མི་ཚུ་གིས་ འདི་ནང་རང་གི་གསལ་བསྒྲགས་སྤེལ་ཏེ་ གཡོག་བདག་དང་འབྲེལ་བ་འཐབ་ཚུགས།',
     allCategories: 'ཆ་མཉམ།',
     categories: {
       babysitting: 'ཨ་ལུ་ལྟ་རྟོག',
@@ -905,6 +931,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       cleaning: 'གཙང་སྦྲ།',
       elderly_care: 'རྒན་ཤོས་ལྟ་རྟོག',
       companion: 'རོགས་པ།',
+      looking_for_job: 'LOOKING FOR JOB',
       apartment: 'སྡོད་ཁྱིམ།',
       villa: 'ཁྱིམ་གཞིས།',
       sedan: 'སེ་ཌཱན་སྣུམ་འཁོར།',
@@ -989,12 +1016,14 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       editTitle: 'གསལ་བསྒྲགས་ཞུན་དག',
       type: 'དབྱེ་བ།',
       typeJob: 'གཡོག་གོ་སྐབས།',
+      typeLookingForJob: 'Looking for Job (གཡོག་འཚོལ།)',
       typeHouse: 'ཁྱིམ་གླ།',
       typeCar: 'སྣུམ་འཁོར་གླ།',
       typeSale: 'ཉོ་ཚོང་ཅ་ལག',
       category: 'ནང་གསེས་དབྱེ་བ།',
       titleLabel: 'མགོ་བརྗོད།',
-      locationLabel: 'ས་གནས།',
+      jobTitleLabel: 'གཡོག་གི་མིང་།',
+      locationLabel: 'ཁྲོམ་སྡེ།',
       priceEurLabel: 'གོང་ཚད་ (EUR)',
       emailLabel: 'གློག་འཕྲིན་ཁ་བྱང་།',
       phoneLabel: 'འགྲུལ་འཕྲིན་ཨང་།',
@@ -1028,6 +1057,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navSales: 'Verchauf',
     registerLogin: 'Registriere / Login',
     postListing: 'Inserat ufschalte',
+    postLookingForJob: 'LOOKING FOR JOB ufschalte',
     myPosts: 'Mini Inserat',
     adminPanel: 'Admin-Bereich',
     signOut: 'Abmelde',
@@ -1059,6 +1089,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     ],
     recruitmentHeading: 'Stelleaagebot',
     recruitmentLead: 'Wähled Si e Kategorie, schicked Si direkt es E-Mail oder teiled Si d Stell.',
+    lookingForJobLead: 'Stellesuechendi chönd da ihres Gsuch ufschalte, damit Arbetgäber direkt Kontakt ufnäh chönd.',
     allCategories: 'Alli Branche',
     categories: {
       babysitting: 'Chinderbetreuuig',
@@ -1067,6 +1098,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       cleaning: 'Reinigung',
       elderly_care: 'Seniorepfläg',
       companion: 'Begleitperson',
+      looking_for_job: 'LOOKING FOR JOB',
       apartment: 'Wohnig',
       villa: 'Einfamiliehus',
       sedan: 'Limousine',
@@ -1151,12 +1183,14 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       editTitle: 'Inserat bearbeite',
       type: 'Inserat-Typ',
       typeJob: 'Stelleaagebot',
+      typeLookingForJob: 'Looking for Job (Stellesuechi)',
       typeHouse: 'Hus / Wohnig miete',
       typeCar: 'Auto miete',
       typeSale: 'Artikel verchaufe',
       category: 'Kategorie',
       titleLabel: 'Titel',
-      locationLabel: 'Standort',
+      jobTitleLabel: 'Stellebezeichnig',
+      locationLabel: 'Stadt',
       priceEurLabel: 'Basisbetrag (EUR — wird automatisch umgrächnet)',
       emailLabel: 'Kontakt-E-Mail',
       phoneLabel: 'Handynummere',

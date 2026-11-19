@@ -44,11 +44,14 @@ function JobSquadShell() {
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
   const [rentalsSubtab, setRentalsSubtab] = useState<'house' | 'car'>('house');
+  const [selectedJobCat, setSelectedJobCat] = useState<string>('all');
   const [activeScope, setActiveScope] = useState<'all' | 'mine' | 'admin'>('all');
 
   const [contactOpen, setContactOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [formInitialMode, setFormInitialMode] = useState<'job' | 'looking_for_job' | null>(null);
+  const [pendingPostMode, setPendingPostMode] = useState<'job' | 'looking_for_job' | null>(null);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Listing | null>(null);
@@ -179,12 +182,7 @@ function JobSquadShell() {
     );
   }, [firestoreListings, serverListings, deletedIds]);
 
-  const visibleListings = useMemo(() => {
-    if (userProfile && !isAdmin) {
-      return allListings.filter((item) => item.ownerId === userProfile.uid);
-    }
-    return allListings;
-  }, [allListings, userProfile, isAdmin]);
+  const visibleListings = allListings;
 
   const stats = useMemo(() => {
     const categories: Record<string, number> = {};
@@ -210,22 +208,28 @@ function JobSquadShell() {
     };
   }, [visibleListings]);
 
-  const handleOpenPost = () => {
+  const handleOpenPost = (mode: 'job' | 'looking_for_job' = 'job') => {
     if (!userProfile || !userProfile.phone) {
+      setPendingPostMode(mode);
       setAuthOpen(true);
       return;
     }
     setEditingListing(null);
+    setFormInitialMode(mode);
     setFormOpen(true);
   };
 
   const handleEditListing = (listing: Listing) => {
+    setFormInitialMode(null);
     setEditingListing(listing);
     setFormOpen(true);
   };
 
   const handleListingSaved = (saved: Listing) => {
     setDeletedIds((prev) => prev.filter((id) => id !== saved.id));
+    if (saved.type === 'job' && saved.category === 'looking_for_job') {
+      setSelectedJobCat('looking_for_job');
+    }
     setServerListings((prev) => {
       const idx = prev.findIndex((item) => item.id === saved.id);
       if (idx >= 0) {
@@ -279,7 +283,7 @@ function JobSquadShell() {
         onChangeLang={setLang}
         onOpenContact={() => setContactOpen(true)}
         onOpenAuth={() => setAuthOpen(true)}
-        onOpenCreateListing={handleOpenPost}
+        onOpenCreateListing={() => handleOpenPost('job')}
         onSelectRentalsSubmenu={(sub) => setRentalsSubtab(sub)}
         onSelectScope={(scope) => setActiveScope(scope)}
         activeScope={activeScope}
@@ -295,7 +299,7 @@ function JobSquadShell() {
           onExploreJobs={() => {
             document.getElementById('recruitment')?.scrollIntoView({ behavior: 'smooth' });
           }}
-          onPostListing={handleOpenPost}
+          onPostListing={() => handleOpenPost('job')}
         />
 
         <AboutSection lang={lang} />
@@ -303,6 +307,9 @@ function JobSquadShell() {
         <ListingsBoard
           lang={lang}
           listings={visibleListings}
+          selectedJobCat={selectedJobCat}
+          onChangeJobCat={setSelectedJobCat}
+          onOpenPostLookingForJob={() => handleOpenPost('looking_for_job')}
           rentalsSubtab={rentalsSubtab}
           onChangeRentalsSubtab={setRentalsSubtab}
           currentUserId={userProfile?.uid || null}
@@ -334,8 +341,18 @@ function JobSquadShell() {
           setUserProfile(saved);
           setIsAdmin(Boolean(saved.isAdmin));
           void refreshServerListings();
+          if (pendingPostMode && saved.phone) {
+            const nextMode = pendingPostMode;
+            setPendingPostMode(null);
+            setEditingListing(null);
+            setFormInitialMode(nextMode);
+            setFormOpen(true);
+          }
         }}
-        onClose={() => setAuthOpen(false)}
+        onClose={() => {
+          setPendingPostMode(null);
+          setAuthOpen(false);
+        }}
       />
 
       <ListingFormModal
@@ -343,10 +360,12 @@ function JobSquadShell() {
         lang={lang}
         user={userProfile}
         editingListing={editingListing}
+        initialMode={formInitialMode}
         onSaved={handleListingSaved}
         onClose={() => {
           setFormOpen(false);
           setEditingListing(null);
+          setFormInitialMode(null);
         }}
       />
 

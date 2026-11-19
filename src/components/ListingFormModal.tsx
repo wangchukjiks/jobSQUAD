@@ -25,12 +25,21 @@ interface ListingFormModalProps {
   lang: SupportedLang;
   user: UserProfile | null;
   editingListing: Listing | null;
+  initialMode?: 'job' | 'looking_for_job' | null;
   onSaved: (listing: Listing) => void;
   onClose: () => void;
 }
 
 const CATEGORIES_BY_TYPE: Record<ListingType, string[]> = {
-  job: ['babysitting', 'restaurant', 'construction', 'cleaning', 'elderly_care', 'companion'],
+  job: [
+    'babysitting',
+    'restaurant',
+    'construction',
+    'cleaning',
+    'elderly_care',
+    'companion',
+    'looking_for_job',
+  ],
   house: ['apartment', 'villa'],
   car: ['sedan', 'suv'],
   sale: ['electronics', 'furniture', 'appliances'],
@@ -71,6 +80,7 @@ export function ListingFormModal({
   lang,
   user,
   editingListing,
+  initialMode = null,
   onSaved,
   onClose,
 }: ListingFormModalProps) {
@@ -142,7 +152,7 @@ export function ListingFormModal({
       setCondition(editingListing.specs?.condition || 'Like New');
     } else {
       setType('job');
-      setCategory('babysitting');
+      setCategory(initialMode === 'looking_for_job' ? 'looking_for_job' : 'babysitting');
       setTitle('');
       setLocation('');
       setPriceEur('0');
@@ -163,21 +173,37 @@ export function ListingFormModal({
       setBrand('');
       setCondition('Like New');
     }
-  }, [open, editingListing, user]);
+  }, [open, editingListing, initialMode, user]);
 
   if (!open || !user) return null;
 
   const isJob = type === 'job';
+  const isLookingForJob = isJob && category === 'looking_for_job';
   const requiresMedia = type === 'house' || type === 'car' || type === 'sale';
 
-  const handleTypeChange = (nextType: ListingType) => {
-    setType(nextType);
-    setCategory(CATEGORIES_BY_TYPE[nextType][0]);
-    if (nextType === 'job') {
+  const handleListingCategoryChange = (selected: string) => {
+    if (selected === 'looking_for_job') {
+      setType('job');
+      setCategory('looking_for_job');
       setPriceEur('0');
       setImages([]);
-    } else if (priceEur === '0') {
-      setPriceEur(nextType === 'house' ? '1200' : nextType === 'car' ? '65' : '250');
+      setRestaurantName('');
+      setTitle('');
+      return;
+    }
+    const nextType = selected as ListingType;
+    setType(nextType);
+    if (nextType === 'job') {
+      setCategory((prev) =>
+        prev === 'looking_for_job' || !CATEGORIES_BY_TYPE.job.includes(prev) ? 'babysitting' : prev
+      );
+      setPriceEur('0');
+      setImages([]);
+    } else {
+      setCategory(CATEGORIES_BY_TYPE[nextType][0]);
+      if (priceEur === '0') {
+        setPriceEur(nextType === 'house' ? '1200' : nextType === 'car' ? '65' : '250');
+      }
     }
   };
 
@@ -238,16 +264,13 @@ export function ListingFormModal({
     }
     const specs: ListingSpecs = {
       employmentType,
-      ...(category === 'restaurant' && restaurantName.trim()
+      ...(!isLookingForJob && restaurantName.trim()
         ? { restaurantName: restaurantName.trim() }
         : {}),
     };
     return {
       specs,
-      summary:
-        category === 'restaurant' && restaurantName.trim()
-          ? `${restaurantName.trim()} · ${employmentType}`
-          : employmentType,
+      summary: employmentType,
     };
   };
 
@@ -296,7 +319,11 @@ export function ListingFormModal({
       }
 
       const { specs, summary } = buildSpecs();
-      const cleanTitle = title.trim();
+      const resolvedOwnerName =
+        user.displayName?.trim() || user.email.split('@')[0] || 'Member';
+      const cleanTitle = isLookingForJob
+        ? `${t.categories.looking_for_job} - ${resolvedOwnerName}`.slice(0, 160)
+        : title.trim();
       const cleanDescription = description.trim();
       const cleanLocation = location.trim();
       const cleanEmail = contactEmail.trim();
@@ -332,10 +359,12 @@ export function ListingFormModal({
           status: editingListing.status || ('active' as const),
         };
 
-        const isFirebaseOwner =
-          isFirebaseAuthenticated && !editingListing.isSeeded && editingListing.ownerId === user.uid;
+        const canUpdateInFirestore =
+          isFirebaseAuthenticated &&
+          !editingListing.isSeeded &&
+          (editingListing.ownerId === user.uid || Boolean(user.isAdmin));
 
-        if (isFirebaseOwner) {
+        if (canUpdateInFirestore) {
           try {
             await updateListingDoc(editingListing.id, updates);
             savedListing = { ...editingListing, ...updates, updatedAt: Date.now() };
@@ -353,8 +382,6 @@ export function ListingFormModal({
         }
       } else {
         const newId = `post_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const resolvedOwnerName =
-          user.displayName?.trim() || user.email.split('@')[0] || 'Member';
         const payload: Omit<Listing, 'id' | 'createdAt' | 'updatedAt' | 'isSeeded'> = {
           ownerId: user.uid,
           ownerName: resolvedOwnerName,
@@ -411,7 +438,11 @@ export function ListingFormModal({
               updatedAt: Date.now(),
             };
             onSaved(enriched);
-            if (isFirebaseAuthenticated && savedListing.ownerId === user.uid) {
+            if (
+              isFirebaseAuthenticated &&
+              !savedListing.isSeeded &&
+              (savedListing.ownerId === user.uid || Boolean(user.isAdmin))
+            ) {
               await updateListingDoc(savedListing.id, { translations }).catch(() => {});
             } else {
               await updateServerListing(savedListing.id, { ...savedListing, translations }).catch(
@@ -460,12 +491,13 @@ export function ListingFormModal({
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">{t.listingModal.type}</label>
               <select
-                value={type}
+                value={isLookingForJob ? 'looking_for_job' : type}
                 disabled={Boolean(editingListing)}
-                onChange={(e) => handleTypeChange(e.target.value as ListingType)}
+                onChange={(e) => handleListingCategoryChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438]"
               >
                 <option value="job">{t.listingModal.typeJob}</option>
+                <option value="looking_for_job">{t.listingModal.typeLookingForJob}</option>
                 <option value="house">{t.listingModal.typeHouse}</option>
                 <option value="car">{t.listingModal.typeCar}</option>
                 <option value="sale">{t.listingModal.typeSale}</option>
@@ -476,8 +508,16 @@ export function ListingFormModal({
               <label className="text-xs font-medium text-slate-300">{t.listingModal.category}</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438]"
+                disabled={isLookingForJob}
+                onChange={(e) => {
+                  const nextCat = e.target.value;
+                  setCategory(nextCat);
+                  if (nextCat === 'looking_for_job') {
+                    setRestaurantName('');
+                    setTitle('');
+                  }
+                }}
+                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438] disabled:opacity-75"
               >
                 {CATEGORIES_BY_TYPE[type].map((cat) => (
                   <option key={cat} value={cat}>
@@ -488,15 +528,16 @@ export function ListingFormModal({
             </div>
           </div>
 
-          {isJob && category === 'restaurant' && (
+          {isJob && !isLookingForJob && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
-                {t.specsLabels.restaurantName} <span className="text-[#D9A438]">*</span>
+                {t.specsLabels.restaurantName}
+                {category === 'restaurant' && <span className="text-[#D9A438]"> *</span>}
               </label>
               <input
                 type="text"
-                required
-                minLength={2}
+                required={category === 'restaurant'}
+                minLength={category === 'restaurant' ? 2 : undefined}
                 maxLength={120}
                 value={restaurantName}
                 onChange={(e) => setRestaurantName(e.target.value)}
@@ -506,18 +547,22 @@ export function ListingFormModal({
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-300">{t.listingModal.titleLabel}</label>
-            <input
-              type="text"
-              required
-              minLength={2}
-              maxLength={160}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438]"
-            />
-          </div>
+          {!isLookingForJob && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-300">
+                {isJob ? t.listingModal.jobTitleLabel : t.listingModal.titleLabel}
+              </label>
+              <input
+                type="text"
+                required
+                minLength={2}
+                maxLength={160}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438]"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">

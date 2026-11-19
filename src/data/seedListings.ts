@@ -78,7 +78,7 @@ export const SEED_LISTINGS: Listing[] = [
     contactEmail: 'careers@bistrolumiere.example.org',
     contactPhone: '+33 6 44 21 90 12',
     images: [],
-    specs: { employmentType: 'Full-Time', pricePeriod: 'month' },
+    specs: { employmentType: 'Full-Time', restaurantName: 'Bistro Lumière', pricePeriod: 'month' },
     status: 'active',
     isSeeded: true,
     createdAt: Date.UTC(2026, 10, 15, 11, 15),

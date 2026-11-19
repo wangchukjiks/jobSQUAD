@@ -102,7 +102,7 @@
         },
         "category": {
           "type": "string",
-          "description": "Category key such as babysitting, restaurant, construction, cleaning, elderly_care, companion, apartment, villa, sedan, suv, electronics, furniture, appliances.",
+          "description": "Category key such as babysitting, restaurant, construction, cleaning, elderly_care, companion, looking_for_job, apartment, villa, sedan, suv, electronics, furniture, appliances.",
           "minLength": 1,
           "maxLength": 80
         },
