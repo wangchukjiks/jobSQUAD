@@ -57,6 +57,22 @@ export function formatLocalizedPrice(
   return `${opt.currency.symbol}${formatted}${suffix}`;
 }
 
+export function formatPostDateTime(
+  timestamp: number | undefined,
+  lang: SupportedLang
+): string {
+  if (!timestamp || !Number.isFinite(timestamp)) return '—';
+  const opt = LANGUAGE_OPTIONS.find((l) => l.code === lang) || LANGUAGE_OPTIONS[1];
+  const locale = opt.code === 'dz' ? 'en-US' : opt.currency.locale;
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(timestamp));
+}
+
 export interface UIStrings {
   contactUs: string;
   navAbout: string;
@@ -120,6 +136,7 @@ export interface UIStrings {
     brand: string;
     location: string;
     postedBy: string;
+    postedAt: string;
     restaurantName: string;
   };
   contactModal: {
@@ -283,6 +300,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: '品牌',
       location: '地点',
       postedBy: '发布者',
+      postedAt: '发布时间',
       restaurantName: '餐厅名称',
     },
     contactModal: {
@@ -444,6 +462,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Brand',
       location: 'Location',
       postedBy: 'Posted by',
+      postedAt: 'Posted on',
       restaurantName: 'Restaurant Name',
     },
     contactModal: {
@@ -605,6 +624,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Marque',
       location: 'Lieu',
       postedBy: 'Publié par',
+      postedAt: 'Publié le',
       restaurantName: 'Nom du restaurant',
     },
     contactModal: {
@@ -766,6 +786,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Marca',
       location: 'Ubicación',
       postedBy: 'Publicado por',
+      postedAt: 'Publicado el',
       restaurantName: 'Nombre del restaurante',
     },
     contactModal: {
@@ -927,6 +948,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'ཚོང་རྟགས།',
       location: 'ས་གནས།',
       postedBy: 'སྤེལ་མི།',
+      postedAt: 'སྤེལ་བའི་དུས་ཚོད།',
       restaurantName: 'ཟ་ཁང་གི་མིང་།',
     },
     contactModal: {
@@ -1088,6 +1110,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       brand: 'Marke',
       location: 'Ort',
       postedBy: 'Inseriert vo',
+      postedAt: 'Veröffentlicht',
       restaurantName: 'Name vom Restaurant',
     },
     contactModal: {

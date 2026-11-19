@@ -122,7 +122,9 @@ export function ListingFormModal({
       setEmploymentType(editingListing.specs?.employmentType || 'Full-Time');
       setRestaurantName(
         editingListing.specs?.restaurantName ||
-          (editingListing.category === 'restaurant' ? editingListing.ownerName : '')
+          (editingListing.isSeeded && editingListing.category === 'restaurant'
+            ? editingListing.ownerName
+            : '')
       );
       setContactEmail(editingListing.contactEmail);
       setContactPhone(editingListing.contactPhone);
@@ -352,9 +354,7 @@ export function ListingFormModal({
       } else {
         const newId = `post_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const resolvedOwnerName =
-          type === 'job' && category === 'restaurant' && restaurantName.trim()
-            ? restaurantName.trim()
-            : user.displayName;
+          user.displayName?.trim() || user.email.split('@')[0] || 'Member';
         const payload: Omit<Listing, 'id' | 'createdAt' | 'updatedAt' | 'isSeeded'> = {
           ownerId: user.uid,
           ownerName: resolvedOwnerName,

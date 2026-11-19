@@ -12,6 +12,8 @@ import {
   doc,
   getDoc,
   getDocFromServer,
+  getDocs,
+  getDocsFromServer,
   getFirestore,
   onSnapshot,
   orderBy,
@@ -19,6 +21,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  type QueryDocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -162,39 +165,63 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
   }
 }
 
+function mapListingDoc(docSnap: QueryDocumentSnapshot): Listing {
+  const d = docSnap.data();
+  return {
+    id: docSnap.id,
+    ownerId: String(d.ownerId || ''),
+    ownerName: String(d.ownerName || ''),
+    type: d.type,
+    category: String(d.category || ''),
+    title: String(d.title || ''),
+    description: String(d.description || ''),
+    location: String(d.location || ''),
+    priceEur: Number(d.priceEur || 0),
+    contactEmail: String(d.contactEmail || ''),
+    contactPhone: String(d.contactPhone || ''),
+    images: Array.isArray(d.images) ? d.images : [],
+    specs: d.specs || {},
+    translations: d.translations || {},
+    status: d.status === 'closed' ? 'closed' : 'active',
+    createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now(),
+    updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now(),
+    isSeeded: false,
+  };
+}
+
+export async function fetchFirestoreListingsOnce(): Promise<Listing[]> {
+  const path = 'listings';
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+  try {
+    const snap = await getDocsFromServer(q);
+    return snap.docs.map(mapListingDoc);
+  } catch {
+    try {
+      const snap = await getDocs(q);
+      return snap.docs.map(mapListingDoc);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+    }
+  }
+}
+
 export function subscribeListings(
   onData: (listings: Listing[]) => void,
   onError?: (err: Error) => void
 ): Unsubscribe {
   const path = 'listings';
   const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
+
+  void fetchFirestoreListingsOnce()
+    .then((items) => {
+      if (items.length > 0) onData(items);
+    })
+    .catch(() => {});
+
   return onSnapshot(
     q,
     (snapshot) => {
-      const items: Listing[] = snapshot.docs.map((docSnap) => {
-        const d = docSnap.data();
-        return {
-          id: docSnap.id,
-          ownerId: String(d.ownerId || ''),
-          ownerName: String(d.ownerName || ''),
-          type: d.type,
-          category: String(d.category || ''),
-          title: String(d.title || ''),
-          description: String(d.description || ''),
-          location: String(d.location || ''),
-          priceEur: Number(d.priceEur || 0),
-          contactEmail: String(d.contactEmail || ''),
-          contactPhone: String(d.contactPhone || ''),
-          images: Array.isArray(d.images) ? d.images : [],
-          specs: d.specs || {},
-          translations: d.translations || {},
-          status: d.status === 'closed' ? 'closed' : 'active',
-          createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now(),
-          updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now(),
-          isSeeded: false,
-        };
-      });
-      onData(items);
+      onData(snapshot.docs.map(mapListingDoc));
     },
     (error) => {
       if (onError) {

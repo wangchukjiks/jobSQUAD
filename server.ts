@@ -47,9 +47,26 @@ function getFirebaseApiKey(): string {
   }
 }
 
+function resolveServerPort(): number {
+  const argv = process.argv;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--port' && argv[i + 1]) {
+      const parsed = Number(argv[i + 1]);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    } else if (argv[i].startsWith('--port=')) {
+      const parsed = Number(argv[i].slice('--port='.length));
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  if (process.env.NODE_ENV === 'development') {
+    return 3000;
+  }
+  return Number(process.env.PORT || 3000);
+}
+
 async function startServer() {
   const app = express();
-  const port = Number(process.env.PORT || 3000);
+  const port = resolveServerPort();
 
   app.set('trust proxy', 1);
   app.disable('x-powered-by');

@@ -7,7 +7,27 @@ import type {
 } from '../types/index.ts';
 
 let cachedCsrfToken: string | null = null;
-let inMemorySessionToken: string | null = null;
+const SESSION_TOKEN_STORAGE_KEY = 'jobsquad_srv_session_token_v1';
+
+function readStoredSessionToken(): string | null {
+  try {
+    return localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSessionToken(token: string | null): void {
+  inMemorySessionToken = token;
+  try {
+    if (token) localStorage.setItem(SESSION_TOKEN_STORAGE_KEY, token);
+    else localStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore storage issues
+  }
+}
+
+let inMemorySessionToken: string | null = readStoredSessionToken();
 
 class ApiBackendUnavailableError extends Error {
   constructor() {
@@ -287,7 +307,11 @@ export async function fetchCurrentAuthUser(): Promise<UserProfile | null> {
     if (inMemorySessionToken) {
       headers['Authorization'] = `Bearer ${inMemorySessionToken}`;
     }
-    const res = await fetch('/api/auth/me', { credentials: 'include', headers });
+    const res = await fetchWithRetry('/api/auth/me', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers,
+    });
     if (!res.ok) {
       return res.status === 404 ? getStaticSession() : null;
     }
@@ -315,7 +339,7 @@ export async function registerWithDetails(input: {
       '/api/auth/register',
       input
     );
-    if (res.sessionToken) inMemorySessionToken = res.sessionToken;
+    if (res.sessionToken) writeStoredSessionToken(res.sessionToken);
     return res.user;
   } catch (err) {
     if (!(err instanceof ApiBackendUnavailableError)) throw err;
@@ -362,7 +386,7 @@ export async function loginWithCredentials(input: {
       '/api/auth/login',
       input
     );
-    if (res.sessionToken) inMemorySessionToken = res.sessionToken;
+    if (res.sessionToken) writeStoredSessionToken(res.sessionToken);
     return res.user;
   } catch (err) {
     if (!(err instanceof ApiBackendUnavailableError)) throw err;
@@ -394,7 +418,7 @@ export async function syncFirebaseSession(idToken: string): Promise<void> {
       { idToken }
     );
     if (res.sessionToken) {
-      inMemorySessionToken = res.sessionToken;
+      writeStoredSessionToken(res.sessionToken);
     }
   } catch (err) {
     if (!(err instanceof ApiBackendUnavailableError)) throw err;
@@ -407,7 +431,7 @@ export async function logoutServerSession(): Promise<void> {
   } catch {
     // Ignore when static-only
   } finally {
-    inMemorySessionToken = null;
+    writeStoredSessionToken(null);
     setStaticSession(null);
   }
 }
@@ -421,7 +445,11 @@ export async function fetchServerListings(): Promise<{
     if (inMemorySessionToken) {
       headers['Authorization'] = `Bearer ${inMemorySessionToken}`;
     }
-    const res = await fetch('/api/listings', { credentials: 'include', cache: 'no-store', headers });
+    const res = await fetchWithRetry('/api/listings', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers,
+    });
     if (!res.ok) {
       if (res.status === 404) {
         return {

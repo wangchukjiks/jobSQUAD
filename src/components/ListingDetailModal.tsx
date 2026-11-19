@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, CheckCircle2, Copy, ExternalLink, Mail, MapPin, Phone, Send, Share2, X } from 'lucide-react';
-import { formatLocalizedPrice, UI_TEXT } from '../i18n/translations.ts';
+import { formatLocalizedPrice, formatPostDateTime, UI_TEXT } from '../i18n/translations.ts';
 import { fetchCaptchaChallenge, sendListingInquiry } from '../lib/api.ts';
 import type { Listing, SupportedLang, UserProfile } from '../types/index.ts';
 import { CaptchaField } from './CaptchaField.tsx';
@@ -213,12 +213,14 @@ export function ListingDetailModal({
     >
       <div className="jobsquad-surface w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl my-8">
         <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-800">
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[#D9A438] font-medium">
               {t.categories[listing.category] || listing.category}
             </span>
-            <span aria-hidden="true"> · </span>
-            <span>{t.specsLabels.postedBy}: {listing.ownerName}</span>
+            <span aria-hidden="true">·</span>
+            <span>{t.specsLabels.postedBy}: <strong className="text-slate-200 font-medium">{listing.ownerName || 'Member'}</strong></span>
+            <span aria-hidden="true">·</span>
+            <span className="font-mono-num">{t.specsLabels.postedAt}: {formatPostDateTime(listing.createdAt, lang)}</span>
           </div>
           <button
             type="button"

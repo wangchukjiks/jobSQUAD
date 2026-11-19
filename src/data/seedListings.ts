@@ -18,7 +18,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { employmentType: 'Part-Time', pricePeriod: 'hour' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 5,
+    createdAt: Date.UTC(2026, 10, 14, 9, 30),
     translations: {
       zh: {
         title: '双语课后育儿保姆（照看两名儿童）',
@@ -81,7 +81,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { employmentType: 'Full-Time', pricePeriod: 'month' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 4,
+    createdAt: Date.UTC(2026, 10, 15, 11, 15),
     translations: {
       zh: {
         title: '现代欧式餐厅副厨师长 / 热菜厨师',
@@ -144,7 +144,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { employmentType: 'Full-Time', pricePeriod: 'month' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 3,
+    createdAt: Date.UTC(2026, 10, 16, 8, 45),
     translations: {
       zh: {
         title: '工地持证电工及室内翻新技师',
@@ -207,7 +207,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { employmentType: 'Flexible', pricePeriod: 'hour' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 3,
+    createdAt: Date.UTC(2026, 10, 16, 14, 20),
     translations: {
       zh: {
         title: '写字楼及精品展厅保洁专员',
@@ -270,7 +270,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { employmentType: 'Full-Time', pricePeriod: 'month' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 2,
+    createdAt: Date.UTC(2026, 10, 17, 10, 0),
     translations: {
       zh: {
         title: '持证长者照护专员（白班）',
@@ -333,7 +333,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { employmentType: 'Part-Time', pricePeriod: 'hour' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 1,
+    createdAt: Date.UTC(2026, 10, 18, 16, 10),
     translations: {
       zh: {
         title: '贴心陪护与出行陪同专员',
@@ -403,7 +403,7 @@ export const SEED_LISTINGS: Listing[] = [
     },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 6,
+    createdAt: Date.UTC(2026, 10, 13, 12, 0),
     translations: {
       zh: {
         title: '巴黎大区阳光两室一厅精装阳台公寓',
@@ -472,7 +472,7 @@ export const SEED_LISTINGS: Listing[] = [
     },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 4,
+    createdAt: Date.UTC(2026, 10, 15, 15, 30),
     translations: {
       zh: {
         title: '石灰岩四居室庭院家庭别墅（带私家车库）',
@@ -542,7 +542,7 @@ export const SEED_LISTINGS: Listing[] = [
     },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 3,
+    createdAt: Date.UTC(2026, 10, 16, 17, 45),
     translations: {
       zh: {
         title: '2025款长续航纯电行政级轿车出租',
@@ -611,7 +611,7 @@ export const SEED_LISTINGS: Listing[] = [
     },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 2,
+    createdAt: Date.UTC(2026, 10, 17, 13, 15),
     translations: {
       zh: {
         title: '2024款珠光白混动紧凑型 SUV（全季节轮胎）',
@@ -675,7 +675,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { condition: 'Like New', brand: 'ProBook Studio', pricePeriod: 'once' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 2,
+    createdAt: Date.UTC(2026, 10, 17, 18, 5),
     translations: {
       zh: {
         title: '14英寸专业铝合金超极本（32G+1TB）含无线机械键盘',
@@ -738,7 +738,7 @@ export const SEED_LISTINGS: Listing[] = [
     specs: { condition: 'Excellent', brand: 'Aurora Artigiana', pricePeriod: 'once' },
     status: 'active',
     isSeeded: true,
-    createdAt: Date.now() - 86400000 * 1,
+    createdAt: Date.UTC(2026, 10, 18, 19, 20),
     translations: {
       zh: {
         title: '意式双锅炉拉丝不锈钢半自动咖啡机',

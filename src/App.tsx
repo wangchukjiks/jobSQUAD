@@ -25,6 +25,7 @@ import {
   auth,
   checkIsAdmin,
   deleteListingDoc,
+  fetchFirestoreListingsOnce,
   getUserProfile,
   signOutUser,
   subscribeListings,
@@ -139,7 +140,23 @@ function JobSquadShell() {
       (items) => setFirestoreListings(items),
       (err) => console.error('Listings subscription error:', err)
     );
-    return () => unsubListings();
+
+    const handleSyncOnResume = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshServerListings();
+        void fetchFirestoreListingsOnce()
+          .then((items) => setFirestoreListings(items))
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', handleSyncOnResume);
+    document.addEventListener('visibilitychange', handleSyncOnResume);
+    return () => {
+      unsubListings();
+      window.removeEventListener('focus', handleSyncOnResume);
+      document.removeEventListener('visibilitychange', handleSyncOnResume);
+    };
   }, []);
 
   // Merge server-persisted listings, Firestore listings, and seed catalog (respecting admin deletions/edits)

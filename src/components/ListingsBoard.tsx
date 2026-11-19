@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Check,
+  Clock,
   Edit3,
   Eye,
   MapPin,
   Phone,
   Share2,
   Trash2,
+  User as UserIcon,
 } from 'lucide-react';
-import { formatLocalizedPrice, UI_TEXT } from '../i18n/translations.ts';
+import { formatLocalizedPrice, formatPostDateTime, UI_TEXT } from '../i18n/translations.ts';
 import type { Listing, SupportedLang } from '../types/index.ts';
 import { ImageSlider } from './ImageSlider.tsx';
 
@@ -251,7 +253,7 @@ export function ListingsBoard({
               {t.noListings}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-5">
               {jobListings.map((item) => {
                 const loc = getLocalized(item);
                 const phoneDisplay = item.contactPhone || '+33 759163133';
@@ -259,24 +261,27 @@ export function ListingsBoard({
                   <article
                     key={item.id}
                     id={`post-${item.id}`}
-                    className="jobsquad-surface jobsquad-card-hover rounded-xl p-6 flex flex-col justify-between gap-5"
+                    className="jobsquad-surface jobsquad-card-hover rounded-xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 w-full"
                   >
-                    <div className="space-y-3">
+                    <div className="flex-1 min-w-0 space-y-2.5">
                       <div className="flex items-center gap-2 text-xs text-slate-400 flex-wrap">
                         <span className="text-[#D9A438] font-medium">
                           {t.categories[item.category] || item.category}
                         </span>
-                        <span aria-hidden="true">·</span>
-                        <span>{item.ownerName}</span>
                         {loc.specsSummary && (
                           <>
                             <span aria-hidden="true">·</span>
                             <span>{loc.specsSummary}</span>
                           </>
                         )}
+                        <span aria-hidden="true">·</span>
+                        <span className="inline-flex items-center gap-1.5 text-slate-400">
+                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span>{loc.location}</span>
+                        </span>
                       </div>
 
-                      <h3 className="text-lg font-semibold text-slate-50 leading-snug">
+                      <h3 className="text-lg sm:text-xl font-semibold text-slate-50 leading-snug">
                         {loc.title}
                       </h3>
 
@@ -287,33 +292,44 @@ export function ListingsBoard({
                         </p>
                       )}
 
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="inline-flex items-center gap-1.5 text-slate-400 truncate">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span className="truncate">{loc.location}</span>
-                        </span>
-                      </div>
-
                       <p className="text-sm text-slate-300 leading-relaxed">
                         {loc.description}
                       </p>
+
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-1 text-xs text-slate-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          <UserIcon className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
+                          <span>
+                            {t.specsLabels.postedBy}:{' '}
+                            <strong className="font-medium text-slate-200">
+                              {item.ownerName || 'Member'}
+                            </strong>
+                          </span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 font-mono-num">
+                          <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span>
+                            {t.specsLabels.postedAt}: {formatPostDateTime(item.createdAt, lang)}
+                          </span>
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-800/80 space-y-2.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        {/* Non-clickable Recruiter Mobile Number Label */}
-                        <div
-                          aria-label={`${t.recruiterMobile}: ${phoneDisplay}`}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0A1527] border border-[#D9A438]/35 text-xs font-semibold font-mono-num text-[#D9A438] whitespace-nowrap select-text"
-                        >
-                          <Phone className="w-3.5 h-3.5 shrink-0" />
-                          <span>{phoneDisplay}</span>
-                        </div>
+                    <div className="pt-4 border-t border-slate-800/80 lg:pt-0 lg:border-t-0 lg:border-l lg:border-slate-800/80 lg:pl-6 lg:w-72 shrink-0 flex flex-col justify-center gap-3">
+                      {/* Non-clickable Recruiter Mobile Number Label */}
+                      <div
+                        aria-label={`${t.recruiterMobile}: ${phoneDisplay}`}
+                        className="inline-flex items-center justify-center lg:justify-start gap-2 px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-[#D9A438]/35 text-xs font-semibold font-mono-num text-[#D9A438] whitespace-nowrap select-text"
+                      >
+                        <Phone className="w-3.5 h-3.5 shrink-0" />
+                        <span>{phoneDisplay}</span>
+                      </div>
 
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleShare(item)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-700 text-slate-200 text-xs font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors whitespace-nowrap cursor-pointer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-700 text-slate-200 text-xs font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors whitespace-nowrap cursor-pointer"
                         >
                           {copiedId === item.id ? (
                             <>
@@ -327,28 +343,28 @@ export function ListingsBoard({
                             </>
                           )}
                         </button>
-                      </div>
 
-                      {canModify(item) && (
-                        <div className="flex items-center justify-end gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => onEditListing(item)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs text-slate-300 hover:text-[#D9A438] cursor-pointer"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>{t.editPost}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteListing(item)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>{t.deletePost}</span>
-                          </button>
-                        </div>
-                      )}
+                        {canModify(item) && (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => onEditListing(item)}
+                              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-700/80 text-xs text-slate-300 hover:border-[#D9A438] hover:text-[#D9A438] cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>{t.editPost}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteListing(item)}
+                              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-rose-500/30 text-xs text-rose-400 hover:text-rose-300 hover:border-rose-400 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{t.deletePost}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </article>
                 );
@@ -439,6 +455,22 @@ export function ListingsBoard({
                         <h3 className="text-xl font-semibold text-slate-50 leading-snug">
                           {loc.title}
                         </h3>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                          <span className="inline-flex items-center gap-1.5">
+                            <UserIcon className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
+                            <span>
+                              {t.specsLabels.postedBy}:{' '}
+                              <strong className="font-medium text-slate-200">
+                                {item.ownerName || 'Member'}
+                              </strong>
+                            </span>
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 font-mono-num">
+                            <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span>{formatPostDateTime(item.createdAt, lang)}</span>
+                          </span>
+                        </div>
 
                         <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
                           <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -555,6 +587,22 @@ export function ListingsBoard({
                         <h3 className="text-lg font-semibold text-slate-50 leading-snug">
                           {loc.title}
                         </h3>
+
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                          <span className="inline-flex items-center gap-1.5">
+                            <UserIcon className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
+                            <span>
+                              {t.specsLabels.postedBy}:{' '}
+                              <strong className="font-medium text-slate-200">
+                                {item.ownerName || 'Member'}
+                              </strong>
+                            </span>
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 font-mono-num">
+                            <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span>{formatPostDateTime(item.createdAt, lang)}</span>
+                          </span>
+                        </div>
 
                         <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
                           <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
