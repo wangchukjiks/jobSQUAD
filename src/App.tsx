@@ -285,6 +285,10 @@ function JobSquadShell() {
         onOpenAuth={() => setAuthOpen(true)}
         onOpenCreateListing={() => handleOpenPost('job')}
         onSelectRentalsSubmenu={(sub) => setRentalsSubtab(sub)}
+        onSelectLookingForJob={() => {
+          setActiveScope('all');
+          setSelectedJobCat('looking_for_job');
+        }}
         onSelectScope={(scope) => setActiveScope(scope)}
         activeScope={activeScope}
         user={userProfile}

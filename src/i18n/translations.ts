@@ -81,6 +81,7 @@ export interface UIStrings {
   navHouse: string;
   navCar: string;
   navSales: string;
+  navLookingForJob: string;
   registerLogin: string;
   postListing: string;
   postLookingForJob: string;
@@ -220,6 +221,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navHouse: '房屋出租',
     navCar: '汽车租赁',
     navSales: '本地集市',
+    navLookingForJob: '求职 LOOKING FOR JOB',
     registerLogin: '注册 / 登录',
     postListing: '发布信息',
     postLookingForJob: '发布求职信息 (LOOKING FOR JOB)',
@@ -387,6 +389,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navHouse: 'House',
     navCar: 'Car',
     navSales: 'Sales',
+    navLookingForJob: 'LOOKING FOR JOB',
     registerLogin: 'Register / Log In',
     postListing: 'Post Listing',
     postLookingForJob: 'Post Looking for Job',
@@ -554,6 +557,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navHouse: 'Maison',
     navCar: 'Voiture',
     navSales: 'Ventes',
+    navLookingForJob: 'LOOKING FOR JOB',
     registerLogin: 'Inscription / Connexion',
     postListing: 'Publier une annonce',
     postLookingForJob: 'Publier : LOOKING FOR JOB',
@@ -721,6 +725,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navHouse: 'Casas',
     navCar: 'Coches',
     navSales: 'Ventas',
+    navLookingForJob: 'LOOKING FOR JOB',
     registerLogin: 'Registro / Acceso',
     postListing: 'Publicar anuncio',
     postLookingForJob: 'Publicar: LOOKING FOR JOB',
@@ -888,6 +893,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navHouse: 'ཁྱིམ་གླ།',
     navCar: 'སྣུམ་འཁོར་གླ།',
     navSales: 'ཉོ་ཚོང་ཁྲོམ།',
+    navLookingForJob: 'LOOKING FOR JOB',
     registerLogin: 'ཐོ་བཀོད་ / ནང་བསྐྱོད།',
     postListing: 'གསལ་བསྒྲགས་སྤེལ།',
     postLookingForJob: 'LOOKING FOR JOB སྤེལ།',
@@ -1055,6 +1061,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     navHouse: 'Hüser & Wohnige',
     navCar: 'Mietautos',
     navSales: 'Verchauf',
+    navLookingForJob: 'LOOKING FOR JOB',
     registerLogin: 'Registriere / Login',
     postListing: 'Inserat ufschalte',
     postLookingForJob: 'LOOKING FOR JOB ufschalte',

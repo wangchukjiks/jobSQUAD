@@ -21,6 +21,7 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onOpenCreateListing: () => void;
   onSelectRentalsSubmenu: (sub: 'house' | 'car') => void;
+  onSelectLookingForJob: () => void;
   onSelectScope: (scope: 'all' | 'mine' | 'admin') => void;
   activeScope: 'all' | 'mine' | 'admin';
   user: UserProfile | null;
@@ -35,6 +36,7 @@ export function Header({
   onOpenAuth,
   onOpenCreateListing,
   onSelectRentalsSubmenu,
+  onSelectLookingForJob,
   onSelectScope,
   activeScope,
   user,
@@ -120,11 +122,11 @@ export function Header({
         </a>
 
         {/* Primary Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-slate-200">
+        <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-sm font-medium text-slate-200">
           <button
             type="button"
             onClick={() => scrollToSection('about')}
-            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer uppercase"
           >
             {t.navAbout}
           </button>
@@ -132,7 +134,7 @@ export function Header({
           <button
             type="button"
             onClick={() => scrollToSection('recruitment')}
-            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer uppercase"
           >
             {t.navRecruitment}
           </button>
@@ -147,7 +149,7 @@ export function Header({
               type="button"
               onClick={() => setRentalsOpen((v) => !v)}
               aria-expanded={rentalsOpen}
-              className="inline-flex items-center gap-1 hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer py-2"
+              className="inline-flex items-center gap-1 hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer py-2 uppercase"
             >
               <span>{t.navRentals}</span>
               <ChevronDown className="w-4 h-4" />
@@ -160,7 +162,7 @@ export function Header({
                     onSelectRentalsSubmenu('house');
                     scrollToSection('rentals');
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-[#162742] hover:text-[#D9A438] transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-[#162742] hover:text-[#D9A438] transition-colors cursor-pointer uppercase"
                 >
                   {t.navHouse}
                 </button>
@@ -170,7 +172,7 @@ export function Header({
                     onSelectRentalsSubmenu('car');
                     scrollToSection('rentals');
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-[#162742] hover:text-[#D9A438] transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-[#162742] hover:text-[#D9A438] transition-colors cursor-pointer uppercase"
                 >
                   {t.navCar}
                 </button>
@@ -181,9 +183,20 @@ export function Header({
           <button
             type="button"
             onClick={() => scrollToSection('sales')}
-            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer uppercase"
           >
             {t.navSales}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onSelectLookingForJob();
+              scrollToSection('recruitment');
+            }}
+            className="hover:text-[#D9A438] transition-colors whitespace-nowrap shrink-0 cursor-pointer uppercase"
+          >
+            {t.navLookingForJob}
           </button>
         </nav>
 
@@ -293,14 +306,14 @@ export function Header({
           <button
             type="button"
             onClick={() => scrollToSection('about')}
-            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A]"
+            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A] uppercase"
           >
             {t.navAbout}
           </button>
           <button
             type="button"
             onClick={() => scrollToSection('recruitment')}
-            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A]"
+            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A] uppercase"
           >
             {t.navRecruitment}
           </button>
@@ -311,7 +324,7 @@ export function Header({
                 onSelectRentalsSubmenu('house');
                 scrollToSection('rentals');
               }}
-              className="block w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-[#13223A] hover:text-[#D9A438]"
+              className="block w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-[#13223A] hover:text-[#D9A438] uppercase"
             >
               {t.navRentals} — {t.navHouse}
             </button>
@@ -321,7 +334,7 @@ export function Header({
                 onSelectRentalsSubmenu('car');
                 scrollToSection('rentals');
               }}
-              className="block w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-[#13223A] hover:text-[#D9A438]"
+              className="block w-full text-left px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-[#13223A] hover:text-[#D9A438] uppercase"
             >
               {t.navRentals} — {t.navCar}
             </button>
@@ -329,9 +342,19 @@ export function Header({
           <button
             type="button"
             onClick={() => scrollToSection('sales')}
-            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A]"
+            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A] uppercase"
           >
             {t.navSales}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onSelectLookingForJob();
+              scrollToSection('recruitment');
+            }}
+            className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-[#13223A] uppercase"
+          >
+            {t.navLookingForJob}
           </button>
 
           <div className="pt-3 border-t border-slate-800 space-y-2">
