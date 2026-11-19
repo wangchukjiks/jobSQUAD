@@ -10,6 +10,8 @@ export interface StoredUser {
   phone: string;
   accountType: 'seeker' | 'employer' | 'lister';
   isAdmin: boolean;
+  acceptedTerms?: boolean;
+  acceptedTermsAt?: number;
   passwordSalt: string;
   passwordHash: string;
   createdAt: number;
@@ -56,6 +58,8 @@ function createInitialStore(): StoreData {
     phone: '+33 759163133',
     accountType: 'employer',
     isAdmin: true,
+    acceptedTerms: true,
+    acceptedTermsAt: Date.now(),
     passwordSalt: defaultAdminSalt,
     passwordHash: hashPassword('Worldisbig@33', defaultAdminSalt),
     createdAt: Date.now(),
@@ -119,6 +123,7 @@ export function registerAccount(input: {
   displayName: string;
   phone: string;
   accountType: 'seeker' | 'employer' | 'lister';
+  acceptedTerms: boolean;
 }): StoredUser {
   const store = loadStore();
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -128,6 +133,7 @@ export function registerAccount(input: {
   }
 
   const salt = crypto.randomBytes(16).toString('hex');
+  const now = Date.now();
   const user: StoredUser = {
     uid: `usr_${crypto.randomBytes(10).toString('hex')}`,
     email: normalizedEmail,
@@ -135,9 +141,11 @@ export function registerAccount(input: {
     phone: input.phone.trim(),
     accountType: input.accountType,
     isAdmin: ADMIN_EMAILS.has(normalizedEmail),
+    acceptedTerms: Boolean(input.acceptedTerms),
+    acceptedTermsAt: now,
     passwordSalt: salt,
     passwordHash: hashPassword(input.password, salt),
-    createdAt: Date.now(),
+    createdAt: now,
   };
 
   store.users.push(user);
@@ -153,6 +161,89 @@ export function authenticateAccount(email: string, password: string): StoredUser
     throw new Error('Invalid email or password.');
   }
   return user;
+}
+
+export type PublicStoredUser = Omit<StoredUser, 'passwordSalt' | 'passwordHash'>;
+
+function toPublicUser(user: StoredUser): PublicStoredUser {
+  return {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    phone: user.phone,
+    accountType: user.accountType,
+    isAdmin: user.isAdmin,
+    acceptedTerms: user.acceptedTerms,
+    acceptedTermsAt: user.acceptedTermsAt,
+    createdAt: user.createdAt,
+  };
+}
+
+export function getAllStoredUsers(): PublicStoredUser[] {
+  const store = loadStore();
+  return store.users.map(toPublicUser);
+}
+
+export function updateStoredUser(
+  uid: string,
+  updates: {
+    displayName: string;
+    email: string;
+    phone: string;
+    accountType: 'seeker' | 'employer' | 'lister';
+    newPassword?: string;
+  }
+): PublicStoredUser {
+  const store = loadStore();
+  const idx = store.users.findIndex((u) => u.uid === uid);
+  if (idx < 0) {
+    throw new Error('User account not found.');
+  }
+
+  const normalizedEmail = updates.email.trim().toLowerCase();
+  const duplicate = store.users.find(
+    (u) => u.uid !== uid && u.email.toLowerCase() === normalizedEmail
+  );
+  if (duplicate) {
+    throw new Error('Another account already uses this email address.');
+  }
+
+  const existing = store.users[idx];
+  const nextSalt =
+    updates.newPassword && updates.newPassword.length >= 8
+      ? crypto.randomBytes(16).toString('hex')
+      : existing.passwordSalt;
+  const nextHash =
+    updates.newPassword && updates.newPassword.length >= 8
+      ? hashPassword(updates.newPassword, nextSalt)
+      : existing.passwordHash;
+
+  const updated: StoredUser = {
+    ...existing,
+    displayName: updates.displayName.trim(),
+    email: normalizedEmail,
+    phone: updates.phone.trim(),
+    accountType: updates.accountType,
+    isAdmin: existing.isAdmin || ADMIN_EMAILS.has(normalizedEmail),
+    passwordSalt: nextSalt,
+    passwordHash: nextHash,
+  };
+  store.users[idx] = updated;
+  saveStore(store);
+  return toPublicUser(updated);
+}
+
+export function deleteStoredUser(uid: string): void {
+  const store = loadStore();
+  const target = store.users.find((u) => u.uid === uid);
+  if (!target) {
+    throw new Error('User account not found.');
+  }
+  if (ADMIN_EMAILS.has(target.email.toLowerCase())) {
+    throw new Error('Primary administrator account cannot be deleted.');
+  }
+  store.users = store.users.filter((u) => u.uid !== uid);
+  saveStore(store);
 }
 
 export function getAllServerListings(): { listings: Listing[]; deletedIds: string[] } {

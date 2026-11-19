@@ -131,6 +131,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
       email: String(data.email),
       phone: String(data.phone),
       accountType: data.accountType,
+      acceptedTerms: Boolean(data.acceptedTerms),
+      acceptedTermsAt: data.acceptedTermsAt?.toMillis ? data.acceptedTermsAt.toMillis() : undefined,
     };
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, path);
@@ -143,25 +145,114 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
     const ref = doc(db, 'users', profile.uid);
     const existing = await getDoc(ref);
     if (existing.exists()) {
-      await updateDoc(ref, {
+      const existingData = existing.data();
+      const updates: Record<string, unknown> = {
         displayName: profile.displayName,
         phone: profile.phone,
         accountType: profile.accountType,
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (!('acceptedTerms' in existingData)) {
+        if (!profile.acceptedTerms) {
+          throw new Error('You must accept the Terms of Service and Privacy Policy.');
+        }
+        updates.acceptedTerms = true;
+        updates.acceptedTermsAt = serverTimestamp();
+      }
+      await updateDoc(ref, updates);
     } else {
+      if (!profile.acceptedTerms) {
+        throw new Error('You must accept the Terms of Service and Privacy Policy.');
+      }
       await setDoc(ref, {
         uid: profile.uid,
         displayName: profile.displayName,
         email: profile.email,
         phone: profile.phone,
         accountType: profile.accountType,
+        acceptedTerms: true,
+        acceptedTermsAt: serverTimestamp(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function listAllUserProfiles(): Promise<
+  (UserProfile & { createdAt?: number; updatedAt?: number })[]
+> {
+  const path = 'users';
+  try {
+    let snap;
+    try {
+      snap = await getDocsFromServer(collection(db, path));
+    } catch {
+      snap = await getDocs(collection(db, path));
+    }
+    return snap.docs.map((docSnap) => {
+      const data = docSnap.data();
+      const email = String(data.email || '');
+      return {
+        uid: String(data.uid || docSnap.id),
+        displayName: String(data.displayName || ''),
+        email,
+        phone: String(data.phone || ''),
+        accountType: data.accountType,
+        acceptedTerms: Boolean(data.acceptedTerms),
+        acceptedTermsAt: data.acceptedTermsAt?.toMillis ? data.acceptedTermsAt.toMillis() : undefined,
+        isAdmin: BOOTSTRAPPED_ADMIN_EMAILS.has(email.toLowerCase()),
+        createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : undefined,
+        updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : undefined,
+      };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export async function adminUpdateUserProfile(
+  uid: string,
+  updates: {
+    displayName: string;
+    email: string;
+    phone: string;
+    accountType: UserProfile['accountType'];
+  }
+): Promise<void> {
+  const path = `users/${uid}`;
+  try {
+    const ref = doc(db, 'users', uid);
+    const existing = await getDoc(ref);
+    if (!existing.exists()) {
+      throw new Error('User profile not found in Firestore.');
+    }
+    const existingData = existing.data();
+    const payload: Record<string, unknown> = {
+      displayName: updates.displayName.trim(),
+      email: updates.email.trim().toLowerCase(),
+      phone: updates.phone.trim(),
+      accountType: updates.accountType,
+      updatedAt: serverTimestamp(),
+    };
+    if (!('acceptedTerms' in existingData)) {
+      payload.acceptedTerms = true;
+      payload.acceptedTermsAt = serverTimestamp();
+    }
+    await updateDoc(ref, payload);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function adminDeleteUserProfile(uid: string): Promise<void> {
+  const path = `users/${uid}`;
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
 
@@ -183,6 +274,10 @@ function mapListingDoc(docSnap: QueryDocumentSnapshot): Listing {
     specs: d.specs || {},
     translations: d.translations || {},
     status: d.status === 'closed' ? 'closed' : 'active',
+    flagged: Boolean(d.flagged),
+    flagReason: typeof d.flagReason === 'string' ? d.flagReason : '',
+    flaggedAt: d.flaggedAt?.toMillis ? d.flaggedAt.toMillis() : undefined,
+    flaggedBy: typeof d.flaggedBy === 'string' ? d.flaggedBy : '',
     createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now(),
     updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now(),
     isSeeded: false,
@@ -286,6 +381,24 @@ export async function updateListingDoc(
   try {
     await updateDoc(doc(db, 'listings', listingId), {
       ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function flagListingDoc(
+  listingId: string,
+  payload: { flagged: boolean; flagReason: string; flaggedBy: string }
+): Promise<void> {
+  const path = `listings/${listingId}`;
+  try {
+    await updateDoc(doc(db, 'listings', listingId), {
+      flagged: payload.flagged,
+      flagReason: payload.flagged ? payload.flagReason.trim().slice(0, 500) : '',
+      flaggedAt: payload.flagged ? serverTimestamp() : null,
+      flaggedBy: payload.flagged ? payload.flaggedBy.trim().slice(0, 160) : '',
       updatedAt: serverTimestamp(),
     });
   } catch (error) {

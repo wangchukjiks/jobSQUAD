@@ -23,9 +23,12 @@ import { SEED_LISTINGS } from './src/data/seedListings.ts';
 import {
   authenticateAccount,
   deleteServerListing,
+  deleteStoredUser,
   getAllServerListings,
+  getAllStoredUsers,
   getServerListingById,
   registerAccount,
+  updateStoredUser,
   upsertServerListing,
 } from './src/server/store.ts';
 import type { Listing } from './src/types/index.ts';
@@ -35,7 +38,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const VALID_LANGS: SupportedLang[] = ['zh', 'en', 'fr', 'es', 'dz', 'gsw'];
+const VALID_LANGS: SupportedLang[] = ['zh', 'en', 'fr', 'es', 'dz', 'gsw', 'bo'];
 
 function getFirebaseApiKey(): string {
   try {
@@ -134,12 +137,20 @@ async function startServer() {
         phone,
         password,
         accountType,
+        acceptedTerms,
         captchaToken,
         captchaAnswer,
       } = req.body ?? {};
 
       if (!verifyCaptchaChallenge(captchaToken, captchaAnswer)) {
         res.status(400).json({ error: 'CAPTCHA verification failed. Please try again.' });
+        return;
+      }
+
+      if (acceptedTerms !== true) {
+        res.status(400).json({
+          error: 'You must accept the Terms of Service and Privacy Policy to create an account.',
+        });
         return;
       }
 
@@ -172,6 +183,7 @@ async function startServer() {
         phone,
         password,
         accountType: safeType,
+        acceptedTerms: true,
       });
 
       const sessionToken = issueSessionCookie(req, res, {
@@ -190,6 +202,8 @@ async function startServer() {
           displayName: user.displayName,
           phone: user.phone,
           accountType: user.accountType,
+          acceptedTerms: user.acceptedTerms,
+          acceptedTermsAt: user.acceptedTermsAt,
           isAdmin: user.isAdmin,
         },
         sessionToken,
@@ -301,6 +315,105 @@ async function startServer() {
     }
   });
 
+  // Admin User Management Endpoints (strictly administrator-only)
+  app.get('/api/admin/users', (req, res) => {
+    const session = readSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    if (!session.isAdmin) {
+      res.status(403).json({ error: 'Forbidden: administrator access required.' });
+      return;
+    }
+    res.json({ users: getAllStoredUsers() });
+  });
+
+  app.put('/api/admin/users/:uid', requireCsrf, (req, res) => {
+    const session = readSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    if (!session.isAdmin) {
+      res.status(403).json({ error: 'Forbidden: administrator access required.' });
+      return;
+    }
+
+    try {
+      const uid = String(req.params.uid);
+      const { displayName, email, phone, accountType, newPassword } = (req.body ?? {}) as {
+        displayName?: string;
+        email?: string;
+        phone?: string;
+        accountType?: string;
+        newPassword?: string;
+      };
+
+      if (
+        typeof displayName !== 'string' ||
+        displayName.trim().length < 2 ||
+        displayName.trim().length > 120 ||
+        typeof email !== 'string' ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+        typeof phone !== 'string' ||
+        phone.trim().length < 6 ||
+        phone.trim().length > 40
+      ) {
+        res.status(400).json({
+          error: 'Please provide valid display name, email address, and mobile number.',
+        });
+        return;
+      }
+
+      if (typeof newPassword === 'string' && newPassword.trim().length > 0 && newPassword.length < 8) {
+        res.status(400).json({ error: 'New password must be at least 8 characters.' });
+        return;
+      }
+
+      const safeType =
+        accountType === 'seeker' || accountType === 'employer' || accountType === 'lister'
+          ? accountType
+          : 'employer';
+
+      const updated = updateStoredUser(uid, {
+        displayName,
+        email,
+        phone,
+        accountType: safeType,
+        newPassword: typeof newPassword === 'string' && newPassword.length >= 8 ? newPassword : undefined,
+      });
+
+      res.json({ user: updated });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Unable to update user account.',
+      });
+    }
+  });
+
+  app.delete('/api/admin/users/:uid', requireCsrf, (req, res) => {
+    const session = readSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    if (!session.isAdmin) {
+      res.status(403).json({ error: 'Forbidden: administrator access required.' });
+      return;
+    }
+
+    try {
+      const uid = String(req.params.uid);
+      deleteStoredUser(uid);
+      res.json({ ok: true, uid });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Unable to delete user account.',
+      });
+    }
+  });
+
   // Server-backed Listings CRUD (public read, owner/admin write)
   app.get('/api/listings', (_req, res) => {
     const data = getAllServerListings();
@@ -408,12 +521,85 @@ async function startServer() {
       specs: incoming.specs || existing?.specs || {},
       translations: incoming.translations || existing?.translations || ({} as Listing['translations']),
       status: incoming.status === 'closed' ? 'closed' : 'active',
+      flagged: session.isAdmin && typeof incoming.flagged === 'boolean' ? incoming.flagged : existing?.flagged,
+      flagReason:
+        session.isAdmin && typeof incoming.flagReason === 'string'
+          ? incoming.flagReason.trim().slice(0, 500)
+          : existing?.flagReason,
+      flaggedAt:
+        session.isAdmin && typeof incoming.flagged === 'boolean'
+          ? incoming.flagged
+            ? Date.now()
+            : undefined
+          : existing?.flaggedAt,
+      flaggedBy:
+        session.isAdmin && typeof incoming.flagged === 'boolean'
+          ? incoming.flagged
+            ? session.email
+            : undefined
+          : existing?.flaggedBy,
       createdAt: existing?.createdAt || Date.now(),
       updatedAt: Date.now(),
       isSeeded: false,
     };
 
     const saved = upsertServerListing(merged);
+    res.json({ listing: saved });
+  });
+
+  app.post('/api/listings/:id/flag', requireCsrf, (req, res) => {
+    const session = readSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    if (!session.isAdmin) {
+      res.status(403).json({ error: 'Forbidden: only administrators can flag or unflag listings.' });
+      return;
+    }
+
+    const id = String(req.params.id);
+    const { flagged, flagReason, listingSnapshot } = (req.body ?? {}) as {
+      flagged?: boolean;
+      flagReason?: string;
+      listingSnapshot?: Partial<Listing>;
+    };
+
+    if (typeof flagged !== 'boolean') {
+      res.status(400).json({ error: 'Invalid flag state.' });
+      return;
+    }
+
+    const cleanReason = typeof flagReason === 'string' ? flagReason.trim().slice(0, 500) : '';
+    if (flagged && cleanReason.length < 2) {
+      res.status(400).json({ error: 'Please select or enter a reason for flagging this post.' });
+      return;
+    }
+
+    const baseListing =
+      getServerListingById(id) ||
+      SEED_LISTINGS.find((s) => s.id === id) ||
+      (listingSnapshot && typeof listingSnapshot.title === 'string'
+        ? (listingSnapshot as Listing)
+        : undefined);
+
+    if (!baseListing) {
+      res.status(404).json({ error: 'Listing not found.' });
+      return;
+    }
+
+    const updated: Listing = {
+      ...baseListing,
+      id,
+      flagged,
+      flagReason: flagged ? cleanReason : '',
+      flaggedAt: flagged ? Date.now() : undefined,
+      flaggedBy: flagged ? session.email : undefined,
+      updatedAt: Date.now(),
+      isSeeded: false,
+    };
+
+    const saved = upsertServerListing(updated);
     res.json({ listing: saved });
   });
 

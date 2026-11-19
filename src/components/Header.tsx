@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   Globe,
   LogOut,
   Mail,
+  MapPin,
   Menu,
   Phone,
   Plus,
+  Search,
   Shield,
   UserCheck,
   X,
 } from 'lucide-react';
-import { LANGUAGE_OPTIONS, UI_TEXT } from '../i18n/translations.ts';
-import type { SupportedLang, UserProfile } from '../types/index.ts';
+import { formatLocalizedPrice, LANGUAGE_OPTIONS, UI_TEXT } from '../i18n/translations.ts';
+import { matchesListingSearch } from '../lib/search.ts';
+import type { Listing, SupportedLang, UserProfile } from '../types/index.ts';
 
 interface HeaderProps {
   lang: SupportedLang;
@@ -27,6 +30,11 @@ interface HeaderProps {
   user: UserProfile | null;
   isAdmin: boolean;
   onSignOut: () => void;
+  listings: Listing[];
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onSubmitSearch: () => void;
+  onSelectSearchResult: (item: Listing) => void;
 }
 
 export function Header({
@@ -42,10 +50,36 @@ export function Header({
   user,
   isAdmin,
   onSignOut,
+  listings,
+  searchQuery,
+  onSearchChange,
+  onSubmitSearch,
+  onSelectSearchResult,
 }: HeaderProps) {
   const t = UI_TEXT[lang];
   const [rentalsOpen, setRentalsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const trimmedQuery = searchQuery.trim();
+  const matchingListings = useMemo(() => {
+    if (!trimmedQuery) return [];
+    return listings.filter((item) => matchesListingSearch(item, trimmedQuery, lang));
+  }, [listings, trimmedQuery, lang]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setSearchDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false);
@@ -54,6 +88,13 @@ export function Header({
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleSearchFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchDropdownOpen(false);
+    setMobileMenuOpen(false);
+    onSubmitSearch();
   };
 
   return (
@@ -223,8 +264,13 @@ export function Header({
                 <button
                   type="button"
                   onClick={() => {
-                    onSelectScope(activeScope === 'admin' ? 'all' : 'admin');
-                    scrollToSection('recruitment');
+                    const nextScope = activeScope === 'admin' ? 'all' : 'admin';
+                    onSelectScope(nextScope);
+                    if (nextScope === 'admin') {
+                      window.setTimeout(() => scrollToSection('admin-console'), 60);
+                    } else {
+                      scrollToSection('recruitment');
+                    }
                   }}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     activeScope === 'admin'
@@ -374,8 +420,13 @@ export function Header({
                   <button
                     type="button"
                     onClick={() => {
-                      onSelectScope(activeScope === 'admin' ? 'all' : 'admin');
-                      scrollToSection('recruitment');
+                      const nextScope = activeScope === 'admin' ? 'all' : 'admin';
+                      onSelectScope(nextScope);
+                      if (nextScope === 'admin') {
+                        window.setTimeout(() => scrollToSection('admin-console'), 60);
+                      } else {
+                        scrollToSection('recruitment');
+                      }
                     }}
                     className="px-3 py-2 rounded-lg border border-amber-500/40 text-xs text-amber-300"
                   >
@@ -408,6 +459,127 @@ export function Header({
           </div>
         </div>
       )}
+      {/* Global Search Bar Strip */}
+      <div className="border-t border-slate-800/70 bg-[#061020]/95">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div ref={searchContainerRef} className="relative max-w-3xl mx-auto">
+            <form
+              onSubmit={handleSearchFormSubmit}
+              role="search"
+              className="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-[#0B172A] px-3 py-1.5 focus-within:border-[#D9A438] transition-colors"
+            >
+              <Search className="w-4 h-4 text-[#D9A438] shrink-0" aria-hidden="true" />
+              <input
+                type="text"
+                role="searchbox"
+                aria-label={t.search.placeholder}
+                value={searchQuery}
+                onFocus={() => {
+                  if (trimmedQuery) setSearchDropdownOpen(true);
+                }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onSearchChange(val);
+                  setSearchDropdownOpen(val.trim().length > 0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setSearchDropdownOpen(false);
+                }}
+                placeholder={t.search.placeholder}
+                className="flex-1 min-w-0 bg-transparent text-xs sm:text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none"
+              />
+              {trimmedQuery && (
+                <>
+                  <span className="hidden sm:inline-block text-[11px] font-mono-num text-amber-300/90 whitespace-nowrap shrink-0 px-1.5">
+                    {matchingListings.length} {t.search.matchesCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSearchChange('');
+                      setSearchDropdownOpen(false);
+                    }}
+                    aria-label={t.search.clear}
+                    title={t.search.clear}
+                    className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+              <button
+                type="submit"
+                className="px-3 py-1 rounded-md bg-[#D9A438] text-[#071121] text-xs font-semibold hover:bg-[#E5B34B] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                {t.search.button}
+              </button>
+            </form>
+
+            {searchDropdownOpen && trimmedQuery && (
+              <div className="jobsquad-surface absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl shadow-2xl border border-slate-700/90 overflow-hidden">
+                {matchingListings.length === 0 ? (
+                  <div className="px-4 py-4 text-xs sm:text-sm text-slate-400 text-center">
+                    {t.search.noResults}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-800/80 max-h-80 overflow-y-auto">
+                    {matchingListings.slice(0, 6).map((item) => {
+                      const tr = item.translations?.[lang];
+                      const displayTitle =
+                        item.type === 'job' && item.category === 'looking_for_job'
+                          ? `${t.categories.looking_for_job} — ${item.ownerName || 'Member'}`
+                          : tr?.title || item.title;
+                      const displayLocation = tr?.location || item.location;
+                      const period =
+                        item.type === 'house'
+                          ? 'month'
+                          : item.type === 'car'
+                            ? 'day'
+                            : 'once';
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSearchDropdownOpen(false);
+                            setMobileMenuOpen(false);
+                            onSelectSearchResult(item);
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-[#13223A]/90 transition-colors flex items-center justify-between gap-3 cursor-pointer"
+                        >
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="px-1.5 py-0.5 rounded bg-[#D9A438]/15 border border-[#D9A438]/35 text-[#D9A438] font-semibold shrink-0">
+                                {t.search.typeLabels[item.type]}
+                              </span>
+                              <span className="text-slate-400 truncate">
+                                {t.categories[item.category] || item.category}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm font-medium text-slate-100 truncate">
+                              {displayTitle}
+                            </p>
+                            <p className="inline-flex items-center gap-1 text-[11px] text-slate-400 truncate max-w-full">
+                              <MapPin className="w-3 h-3 text-[#D9A438]/80 shrink-0" />
+                              <span className="truncate">{displayLocation}</span>
+                            </p>
+                          </div>
+                          {item.type !== 'job' && (
+                            <span className="font-mono-num text-xs font-bold text-[#D9A438] shrink-0">
+                              {formatLocalizedPrice(item.priceEur, lang, period)}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </header>
   );
 }

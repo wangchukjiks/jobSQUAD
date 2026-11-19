@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { GoogleGenAI, Type } from '@google/genai';
 
-export type SupportedLang = 'zh' | 'en' | 'fr' | 'es' | 'dz' | 'gsw';
+export type SupportedLang = 'zh' | 'en' | 'fr' | 'es' | 'dz' | 'gsw' | 'bo';
 
 export interface TranslatedListingContent {
   title: string;
@@ -12,7 +12,7 @@ export interface TranslatedListingContent {
 
 export type TranslationBundle = Record<SupportedLang, TranslatedListingContent>;
 
-const SUPPORTED_LANGS: SupportedLang[] = ['zh', 'en', 'fr', 'es', 'dz', 'gsw'];
+const SUPPORTED_LANGS: SupportedLang[] = ['zh', 'en', 'fr', 'es', 'dz', 'gsw', 'bo'];
 
 // Bounded in-memory translation cache (max 400 items)
 const translationCache = new Map<string, TranslationBundle>();
@@ -61,6 +61,7 @@ function buildFallbackBundle(input: {
     es: { ...base },
     dz: { ...base },
     gsw: { ...base },
+    bo: { ...base },
   };
 }
 
@@ -96,13 +97,14 @@ export async function translateListingContent(input: {
 
     const response = await ai.models.generateContent({
       model: 'gemini-4-hydrogen',
-      contents: `Translate this marketplace listing into all 6 languages:
+      contents: `Translate this marketplace listing into all 7 languages:
 - zh: Simplified Chinese
 - en: English
 - fr: French
 - es: Spanish
 - dz: Dzongkha (Bhutanese script)
 - gsw: Swiss German (Alemannic / Schwiizerdütsch)
+- bo: Tibetan (Standard Tibetan / བོད་ཡིག)
 
 Input listing:
 Title: ${input.title}
@@ -122,6 +124,7 @@ Keep numbers, emails, and proper brand/street names accurate. Return strictly va
             es: langSchema,
             dz: langSchema,
             gsw: langSchema,
+            bo: langSchema,
           },
           required: SUPPORTED_LANGS,
         },
@@ -210,6 +213,8 @@ const FALLBACK_REPLIES: Record<SupportedLang, (stats: PlatformStats, q: string) 
     `བཀྲ་ཤིས་བདེ་ལེགས། JobSQUAD གཡོག་དང་ཚོང་ལས་སྟེགས་བུའི་ནང་ ད་ལྟོ་ གཡོག་གི་གོ་སྐབས་ ${s.jobs} དང་། ཁྱིམ་གླ་ ${s.houses} ། སྣུམ་འཁོར་གླ་ ${s.cars} ། ཉོ་ཚོང་ཅ་ལག་ ${s.sales} བཅས་བསྡོམས་ ${s.total} ཡོད། འབྲེལ་བ་འཐབ་དགོ་ན་ +33 759163133 དང་ jigsonbusyness@gmail.com ལུ་གཏང་གནང་།`,
   gsw: (s) =>
     `Grüezi bi JobSQUAD! Aktuell händ mir ${s.jobs} offeni Stelle, ${s.houses} Wohnige/Hüser zur Mieti, ${s.cars} Mietautos und ${s.sales} Verchaufsinserat (total ${s.total} Iiträg). Bi Frage erreichid Si üs under +33 759163133 oder jigsonbusyness@gmail.com.`,
+  bo: (s) =>
+    `བཀྲ་ཤིས་བདེ་ལེགས། JobSQUAD དྲ་ཚིགས་སུ་ད་ལྟ་ལས་ཀའི་ས་མིག་ ${s.jobs} དང་། ཁང་པ་གླ་གཏོང་ ${s.houses} ། རླངས་འཁོར་གླ་གཏོང་ ${s.cars} ། ཉོ་ཚོང་དངོས་པོ་ ${s.sales} བཅས་ཁྱོན་བསྡོམས་ ${s.total} ཡོད། རོགས་རམ་དགོས་ན་ +33 759163133 དང་ jigsonbusyness@gmail.com ལ་འབྲེལ་བ་གནང་རོགས།`,
 };
 
 export async function generateAssistantReply(input: {
@@ -225,6 +230,7 @@ export async function generateAssistantReply(input: {
     es: 'Spanish (Español)',
     dz: 'Dzongkha (རྫོང་ཁ)',
     gsw: 'Swiss German (Schwiizerdütsch)',
+    bo: 'Tibetan (བོད་སྐད)',
   };
 
   if (!ai) {

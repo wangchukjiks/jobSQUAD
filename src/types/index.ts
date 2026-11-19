@@ -1,4 +1,4 @@
-export type SupportedLang = 'zh' | 'en' | 'fr' | 'es' | 'dz' | 'gsw';
+export type SupportedLang = 'zh' | 'en' | 'fr' | 'es' | 'dz' | 'gsw' | 'bo';
 
 export type ListingType = 'job' | 'house' | 'car' | 'sale';
 
@@ -45,6 +45,10 @@ export interface Listing {
   specs: ListingSpecs;
   translations: TranslationBundle;
   status: 'active' | 'closed';
+  flagged?: boolean;
+  flagReason?: string;
+  flaggedAt?: number;
+  flaggedBy?: string;
   createdAt?: number;
   updatedAt?: number;
   isSeeded?: boolean;
@@ -56,6 +60,8 @@ export interface UserProfile {
   email: string;
   phone: string;
   accountType: AccountType;
+  acceptedTerms?: boolean;
+  acceptedTermsAt?: number;
   isAdmin?: boolean;
 }
 

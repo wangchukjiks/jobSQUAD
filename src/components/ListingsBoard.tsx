@@ -1,23 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   Check,
   Clock,
   Edit3,
   Eye,
+  Flag,
   MapPin,
   Phone,
   Plus,
+  Search,
   Share2,
   Trash2,
   User as UserIcon,
+  X,
 } from 'lucide-react';
 import { formatLocalizedPrice, formatPostDateTime, UI_TEXT } from '../i18n/translations.ts';
+import { matchesListingSearch } from '../lib/search.ts';
 import type { Listing, SupportedLang } from '../types/index.ts';
 import { ImageSlider } from './ImageSlider.tsx';
 
 interface ListingsBoardProps {
   lang: SupportedLang;
   listings: Listing[];
+  searchQuery: string;
+  onClearSearch: () => void;
   selectedJobCat: string;
   onChangeJobCat: (cat: string) => void;
   onOpenPostLookingForJob: () => void;
@@ -29,6 +36,7 @@ interface ListingsBoardProps {
   onClearScope: () => void;
   onViewDetails: (listing: Listing) => void;
   onEditListing: (listing: Listing) => void;
+  onFlagListing: (listing: Listing) => void;
   onDeleteListing: (listing: Listing) => void;
 }
 
@@ -45,6 +53,8 @@ const JOB_CATEGORIES = [
 export function ListingsBoard({
   lang,
   listings,
+  searchQuery,
+  onClearSearch,
   selectedJobCat,
   onChangeJobCat,
   onOpenPostLookingForJob,
@@ -56,6 +66,7 @@ export function ListingsBoard({
   onClearScope,
   onViewDetails,
   onEditListing,
+  onFlagListing,
   onDeleteListing,
 }: ListingsBoardProps) {
   const t = UI_TEXT[lang];
@@ -138,23 +149,26 @@ export function ListingsBoard({
     }
   };
 
+  const hasSearch = searchQuery.trim().length > 0;
   const scopedListings = listings.filter((item) => {
     if (activeScope === 'mine' && currentUserId) {
-      return item.ownerId === currentUserId;
+      if (item.ownerId !== currentUserId) return false;
     }
-    return true;
+    return matchesListingSearch(item, searchQuery, lang);
   });
 
   const jobListings = scopedListings.filter((item) => {
     if (item.type !== 'job') return false;
     if (selectedJobCat === 'all') {
-      return activeScope === 'mine' ? true : item.category !== 'looking_for_job';
+      return activeScope === 'mine' || hasSearch ? true : item.category !== 'looking_for_job';
     }
     return item.category === selectedJobCat;
   });
   const houseListings = scopedListings.filter((item) => item.type === 'house');
   const carListings = scopedListings.filter((item) => item.type === 'car');
   const salesListings = scopedListings.filter((item) => item.type === 'sale');
+  const totalSearchMatches =
+    jobListings.length + houseListings.length + carListings.length + salesListings.length;
 
   const getLocalized = (item: Listing) => {
     const tr = item.translations?.[lang];
@@ -210,11 +224,75 @@ export function ListingsBoard({
         </div>
       )}
 
+      {/* Active Global Search Summary Banner */}
+      {hasSearch && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <div className="jobsquad-surface rounded-xl px-5 py-4 border-[#D9A438]/45 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 text-sm text-slate-100">
+              <Search className="w-4 h-4 text-[#D9A438] shrink-0" />
+              <span>
+                {t.search.resultsFor}{' '}
+                <strong className="text-[#D9A438]">“{searchQuery.trim()}”</strong>
+                {' · '}
+                <span className="font-mono-num text-amber-200">
+                  {totalSearchMatches} {t.search.matchesCount}
+                </span>
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => document.getElementById('recruitment')?.scrollIntoView({ behavior: 'smooth' })}
+                className="px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1628] text-xs font-medium text-slate-200 hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer"
+              >
+                {t.search.typeLabels.job} ({jobListings.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChangeRentalsSubtab('house');
+                  document.getElementById('rentals')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1628] text-xs font-medium text-slate-200 hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer"
+              >
+                {t.search.typeLabels.house} ({houseListings.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onChangeRentalsSubtab('car');
+                  document.getElementById('rentals')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1628] text-xs font-medium text-slate-200 hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer"
+              >
+                {t.search.typeLabels.car} ({carListings.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById('sales')?.scrollIntoView({ behavior: 'smooth' })}
+                className="px-3 py-1.5 rounded-lg border border-slate-700 bg-[#0B1628] text-xs font-medium text-slate-200 hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer"
+              >
+                {t.search.typeLabels.sale} ({salesListings.length})
+              </button>
+              <button
+                type="button"
+                onClick={onClearSearch}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#D9A438]/15 border border-[#D9A438]/40 text-xs font-semibold text-[#D9A438] hover:bg-[#D9A438] hover:text-[#071121] transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>{t.search.clear}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SECTION 1: RECRUITMENT (Non-clickable recruiter mobile label + Share Post; Floating Category Menu on scroll) */}
       <section
         id="recruitment"
         ref={recruitmentSectionRef}
-        className="py-20 sm:py-24 border-b border-slate-800/70"
+        className="scroll-mt-36 py-20 sm:py-24 border-b border-slate-800/70"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -305,24 +383,40 @@ export function ListingsBoard({
                 const phoneDisplay = item.contactPhone || '+33 759163133';
                 const isLookingForJobPost = item.category === 'looking_for_job';
                 const categoryLabel = t.categories[item.category] || item.category;
-                const restaurantLabel = isLookingForJobPost
-                  ? ''
-                  : (
-                      item.specs?.restaurantName ||
-                      (item.category === 'restaurant' ? item.ownerName : '') ||
-                      ''
-                    ).trim();
+                const restaurantLabel =
+                  item.category === 'restaurant'
+                    ? (item.specs?.restaurantName || item.ownerName || '').trim()
+                    : '';
+                const rawEmploymentType = item.specs?.employmentType || '';
+                const localizedEmploymentType =
+                  rawEmploymentType in t.listingModal.scheduleOptions
+                    ? t.listingModal.scheduleOptions[
+                        rawEmploymentType as keyof typeof t.listingModal.scheduleOptions
+                      ]
+                    : rawEmploymentType;
                 const scheduleLabel = item.isSeeded
-                  ? loc.specsSummary || item.specs?.employmentType || ''
-                  : item.specs?.employmentType || loc.specsSummary || '';
+                  ? loc.specsSummary || localizedEmploymentType
+                  : localizedEmploymentType || loc.specsSummary || '';
 
                 return (
                   <article
                     key={item.id}
                     id={`post-${item.id}`}
-                    className="jobsquad-surface jobsquad-card-hover rounded-xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 w-full"
+                    className={`scroll-mt-48 jobsquad-surface jobsquad-card-hover rounded-xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 w-full ${
+                      item.flagged ? 'border-amber-500/60 bg-amber-950/15' : ''
+                    }`}
                   >
                     <div className="flex-1 min-w-0 space-y-2.5">
+                      {item.flagged && (
+                        <div className="rounded-lg border border-amber-500/45 bg-amber-950/45 px-3 py-2 text-xs text-amber-200 flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <span>
+                            <strong className="font-semibold">{t.moderation.flaggedBadge}</strong>
+                            {item.flagReason ? `: ${item.flagReason}` : ''}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Row 1: Subcategory (- Restaurant name when applicable), Location/City, Schedule (slightly larger font) */}
                       <div className="flex items-center gap-x-3 gap-y-1 text-[15px] sm:text-base font-medium flex-wrap">
                         <span className="text-[#D9A438] font-semibold">
@@ -376,56 +470,73 @@ export function ListingsBoard({
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-800/80 lg:pt-0 lg:border-t-0 lg:border-l lg:border-slate-800/80 lg:pl-6 lg:w-72 shrink-0 flex flex-col justify-center gap-3">
-                      {/* Non-clickable Recruiter Mobile Number Label */}
-                      <div
-                        aria-label={`${t.recruiterMobile}: ${phoneDisplay}`}
-                        className="inline-flex items-center justify-center lg:justify-start gap-2 px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-[#D9A438]/35 text-xs font-semibold font-mono-num text-[#D9A438] whitespace-nowrap select-text"
-                      >
-                        <Phone className="w-3.5 h-3.5 shrink-0" />
-                        <span>{phoneDisplay}</span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleShare(item)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-700 text-slate-200 text-xs font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors whitespace-nowrap cursor-pointer"
+                    <div className="pt-4 border-t border-slate-800/80 lg:pt-0 lg:border-t-0 lg:border-l lg:border-slate-800/80 lg:pl-6 lg:w-72 shrink-0 flex flex-col items-center justify-center text-center gap-2.5">
+                      {/* Non-clickable Recruiter Mobile Number placed centered above Share Post */}
+                      <div className="w-full flex flex-col items-center justify-center text-center">
+                        <span className="text-[11px] uppercase tracking-wider text-slate-400 mb-1">
+                          {t.recruiterMobile}
+                        </span>
+                        <div
+                          aria-label={`${t.recruiterMobile}: ${phoneDisplay}`}
+                          className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-[#D9A438]/40 text-sm font-bold font-mono-num text-[#D9A438] whitespace-nowrap select-text"
                         >
-                          {copiedId === item.id ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>{t.linkCopied}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Share2 className="w-3.5 h-3.5" />
-                              <span>{t.sharePost}</span>
-                            </>
-                          )}
-                        </button>
-
-                        {canModify(item) && (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => onEditListing(item)}
-                              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-slate-700/80 text-xs text-slate-300 hover:border-[#D9A438] hover:text-[#D9A438] cursor-pointer"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>{t.editPost}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onDeleteListing(item)}
-                              className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg border border-rose-500/30 text-xs text-rose-400 hover:text-rose-300 hover:border-rose-400 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>{t.deletePost}</span>
-                            </button>
-                          </div>
-                        )}
+                          <Phone className="w-4 h-4 shrink-0" />
+                          <span>{phoneDisplay}</span>
+                        </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleShare(item)}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-700 text-slate-200 text-xs font-medium hover:border-[#D9A438] hover:text-[#D9A438] transition-colors whitespace-nowrap cursor-pointer"
+                      >
+                        {copiedId === item.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{t.linkCopied}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Share2 className="w-3.5 h-3.5" />
+                            <span>{t.sharePost}</span>
+                          </>
+                        )}
+                      </button>
+
+                      {canModify(item) && (
+                        <div className="w-full flex flex-wrap items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onEditListing(item)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-700/80 text-xs text-slate-300 hover:border-[#D9A438] hover:text-[#D9A438] cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>{t.editPost}</span>
+                          </button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => onFlagListing(item)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer ${
+                                item.flagged
+                                  ? 'border-amber-400/70 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25'
+                                  : 'border-amber-500/35 text-amber-300 hover:border-amber-400'
+                              }`}
+                            >
+                              <Flag className="w-3.5 h-3.5" />
+                              <span>{item.flagged ? t.moderation.unflagBtn : t.moderation.flagBtn}</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => onDeleteListing(item)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-xs text-rose-400 hover:text-rose-300 hover:border-rose-400 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>{t.deletePost}</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </article>
                 );
@@ -436,7 +547,7 @@ export function ListingsBoard({
       </section>
 
       {/* SECTION 2: RENTALS (House & Car Submenu) */}
-      <section id="rentals" className="py-20 sm:py-24 border-b border-slate-800/70">
+      <section id="rentals" className="scroll-mt-36 py-20 sm:py-24 border-b border-slate-800/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="space-y-3 max-w-2xl">
@@ -486,7 +597,9 @@ export function ListingsBoard({
                   <article
                     key={item.id}
                     id={`post-${item.id}`}
-                    className="jobsquad-surface jobsquad-card-hover rounded-xl overflow-hidden flex flex-col"
+                    className={`scroll-mt-44 jobsquad-surface jobsquad-card-hover rounded-xl overflow-hidden flex flex-col ${
+                      item.flagged ? 'border-amber-500/60 bg-amber-950/15' : ''
+                    }`}
                   >
                     <ImageSlider
                       images={item.images}
@@ -497,6 +610,16 @@ export function ListingsBoard({
 
                     <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
                       <div className="space-y-2.5">
+                        {item.flagged && (
+                          <div className="rounded-lg border border-amber-500/45 bg-amber-950/45 px-3 py-2 text-xs text-amber-200 flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <span>
+                              <strong className="font-semibold">{t.moderation.flaggedBadge}</strong>
+                              {item.flagReason ? `: ${item.flagReason}` : ''}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
                           <span>
                             <span className="text-[#D9A438] font-medium">
@@ -569,7 +692,7 @@ export function ListingsBoard({
                         </div>
 
                         {canModify(item) && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => onEditListing(item)}
@@ -578,6 +701,16 @@ export function ListingsBoard({
                               <Edit3 className="w-3.5 h-3.5" />
                               <span>{t.editPost}</span>
                             </button>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => onFlagListing(item)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-xs text-amber-300 hover:text-amber-200 cursor-pointer"
+                              >
+                                <Flag className="w-3.5 h-3.5" />
+                                <span>{item.flagged ? t.moderation.unflagBtn : t.moderation.flagBtn}</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => onDeleteListing(item)}
@@ -599,7 +732,7 @@ export function ListingsBoard({
       </section>
 
       {/* SECTION 3: LOCAL SALES MARKETPLACE */}
-      <section id="sales" className="py-20 sm:py-24 border-b border-slate-800/70">
+      <section id="sales" className="scroll-mt-36 py-20 sm:py-24 border-b border-slate-800/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="space-y-3 max-w-2xl">
             <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-50">
@@ -622,7 +755,9 @@ export function ListingsBoard({
                   <article
                     key={item.id}
                     id={`post-${item.id}`}
-                    className="jobsquad-surface jobsquad-card-hover rounded-xl overflow-hidden flex flex-col"
+                    className={`scroll-mt-44 jobsquad-surface jobsquad-card-hover rounded-xl overflow-hidden flex flex-col ${
+                      item.flagged ? 'border-amber-500/60 bg-amber-950/15' : ''
+                    }`}
                   >
                     <ImageSlider
                       images={item.images}
@@ -633,6 +768,16 @@ export function ListingsBoard({
 
                     <div className="p-6 flex-1 flex flex-col justify-between gap-4">
                       <div className="space-y-2.5">
+                        {item.flagged && (
+                          <div className="rounded-lg border border-amber-500/45 bg-amber-950/45 px-3 py-2 text-xs text-amber-200 flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <span>
+                              <strong className="font-semibold">{t.moderation.flaggedBadge}</strong>
+                              {item.flagReason ? `: ${item.flagReason}` : ''}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
                           <span>
                             <span className="text-[#D9A438] font-medium">
@@ -701,7 +846,7 @@ export function ListingsBoard({
                         </div>
 
                         {canModify(item) && (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
                             <button
                               type="button"
                               onClick={() => onEditListing(item)}
@@ -710,6 +855,16 @@ export function ListingsBoard({
                               <Edit3 className="w-3.5 h-3.5" />
                               <span>{t.editPost}</span>
                             </button>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => onFlagListing(item)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs text-amber-300 hover:text-amber-200 cursor-pointer"
+                              >
+                                <Flag className="w-3.5 h-3.5" />
+                                <span>{item.flagged ? t.moderation.unflagBtn : t.moderation.flagBtn}</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => onDeleteListing(item)}

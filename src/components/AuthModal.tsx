@@ -18,6 +18,7 @@ interface AuthModalProps {
   firebaseUser: User | null;
   profile: UserProfile | null;
   onProfileSaved: (profile: UserProfile) => void;
+  onOpenLegal: (tab: 'terms' | 'privacy') => void;
   onClose: () => void;
 }
 
@@ -27,6 +28,7 @@ export function AuthModal({
   firebaseUser,
   profile,
   onProfileSaved,
+  onOpenLegal,
   onClose,
 }: AuthModalProps) {
   const t = UI_TEXT[lang];
@@ -37,6 +39,7 @@ export function AuthModal({
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [accountType, setAccountType] = useState<AccountType>('employer');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [captchaQuestion, setCaptchaQuestion] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
@@ -51,6 +54,7 @@ export function AuthModal({
     setPhone('');
     setPassword('');
     setAccountType('employer');
+    setAcceptedTerms(false);
     setCaptchaQuestion('');
     setCaptchaToken('');
     setCaptchaAnswer('');
@@ -69,11 +73,13 @@ export function AuthModal({
       setEmail(firebaseUser.email || '');
       setPhone(profile?.phone || '');
       setAccountType(profile?.accountType || 'employer');
+      setAcceptedTerms(Boolean(profile?.acceptedTerms));
     } else if (profile) {
       setDisplayName(profile.displayName || '');
       setEmail(profile.email || '');
       setPhone(profile.phone || '');
       setAccountType(profile.accountType || 'employer');
+      setAcceptedTerms(Boolean(profile.acceptedTerms));
     } else {
       resetFormFields('register');
     }
@@ -115,6 +121,10 @@ export function AuthModal({
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!acceptedTerms) {
+      setError(t.legal.checkboxRequiredError);
+      return;
+    }
     setLoading(true);
     try {
       const registeredUser = await registerWithDetails({
@@ -123,6 +133,7 @@ export function AuthModal({
         phone: phone.trim(),
         password,
         accountType,
+        acceptedTerms: true,
         captchaToken,
         captchaAnswer,
       });
@@ -163,6 +174,10 @@ export function AuthModal({
       setError('Please enter your full name and valid mobile number.');
       return;
     }
+    if (!acceptedTerms) {
+      setError(t.legal.checkboxRequiredError);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -180,6 +195,7 @@ export function AuthModal({
         email: firebaseUser.email,
         phone: phone.trim(),
         accountType,
+        acceptedTerms: true,
       };
       await saveUserProfile(nextProfile);
       onProfileSaved({ ...nextProfile, isAdmin: profile?.isAdmin });
@@ -280,6 +296,41 @@ export function AuthModal({
                 }}
                 onAnswerChange={setCaptchaAnswer}
               />
+
+              <label className="flex items-start gap-2.5 rounded-lg border border-slate-700/80 bg-[#0A1527] px-3.5 py-2.5 text-xs text-slate-300 leading-relaxed cursor-pointer">
+                <input
+                  type="checkbox"
+                  required
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-[#071121] accent-[#D9A438] cursor-pointer shrink-0"
+                />
+                <span>
+                  {t.legal.checkboxPrefix}{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onOpenLegal('terms');
+                    }}
+                    className="font-semibold text-[#D9A438] underline hover:text-[#E5B34B] cursor-pointer"
+                  >
+                    {t.legal.termsLink}
+                  </button>{' '}
+                  {t.legal.checkboxAnd}{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onOpenLegal('privacy');
+                    }}
+                    className="font-semibold text-[#D9A438] underline hover:text-[#E5B34B] cursor-pointer"
+                  >
+                    {t.legal.privacyLink}
+                  </button>
+                  <span className="text-rose-400 ml-1" aria-hidden="true">*</span>
+                </span>
+              </label>
 
               <button
                 type="submit"
@@ -415,6 +466,41 @@ export function AuthModal({
                     }}
                     onAnswerChange={setCaptchaAnswer}
                   />
+
+                  <label className="flex items-start gap-2.5 rounded-lg border border-slate-700/80 bg-[#0A1527] px-3.5 py-2.5 text-xs text-slate-300 leading-relaxed cursor-pointer">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-[#071121] accent-[#D9A438] cursor-pointer shrink-0"
+                    />
+                    <span>
+                      {t.legal.checkboxPrefix}{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onOpenLegal('terms');
+                        }}
+                        className="font-semibold text-[#D9A438] underline hover:text-[#E5B34B] cursor-pointer"
+                      >
+                        {t.legal.termsLink}
+                      </button>{' '}
+                      {t.legal.checkboxAnd}{' '}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onOpenLegal('privacy');
+                        }}
+                        className="font-semibold text-[#D9A438] underline hover:text-[#E5B34B] cursor-pointer"
+                      >
+                        {t.legal.privacyLink}
+                      </button>
+                      <span className="text-rose-400 ml-1" aria-hidden="true">*</span>
+                    </span>
+                  </label>
 
                   <button
                     type="submit"

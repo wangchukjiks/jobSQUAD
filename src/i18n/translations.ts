@@ -37,6 +37,12 @@ export const LANGUAGE_OPTIONS: {
     currency: { code: 'BTN', symbol: 'Nu.', rateFromEur: 91.5, locale: 'en-IN' },
   },
   {
+    code: 'bo',
+    label: 'Tibetan',
+    nativeLabel: 'བོད་སྐད (EUR €)',
+    currency: { code: 'EUR', symbol: '€', rateFromEur: 1.0, locale: 'en-US' },
+  },
+  {
     code: 'gsw',
     label: 'Swiss German',
     nativeLabel: 'Schwiizerdütsch (CHF)',
@@ -63,7 +69,7 @@ export function formatPostDateTime(
 ): string {
   if (!timestamp || !Number.isFinite(timestamp)) return '—';
   const opt = LANGUAGE_OPTIONS.find((l) => l.code === lang) || LANGUAGE_OPTIONS[1];
-  const locale = opt.code === 'dz' ? 'en-US' : opt.currency.locale;
+  const locale = opt.code === 'dz' || opt.code === 'bo' ? 'en-US' : opt.currency.locale;
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'short',
@@ -98,6 +104,7 @@ export interface UIStrings {
   statSales: string;
   aboutHeading: string;
   aboutLead: string;
+  aboutBadge: string;
   aboutCards: { title: string; body: string }[];
   recruitmentHeading: string;
   recruitmentLead: string;
@@ -196,10 +203,15 @@ export interface UIStrings {
     imagesRequiredNote: string;
     uploadHint: string;
     descriptionLabel: string;
+    scheduleLabel: string;
+    scheduleOptions: Record<'Full-Time' | 'Part-Time' | 'Flexible', string>;
     submitCreate: string;
     submitSave: string;
     translating: string;
   };
+  specValues: Record<string, string>;
+  cancel: string;
+  ok: string;
   captchaLabel: string;
   captchaPlaceholder: string;
   chatbotTitle: string;
@@ -210,6 +222,83 @@ export interface UIStrings {
   footerContactHeading: string;
   footerSocialHeading: string;
   footerRights: string;
+  search: {
+    placeholder: string;
+    button: string;
+    clear: string;
+    resultsFor: string;
+    matchesCount: string;
+    noResults: string;
+    typeLabels: {
+      job: string;
+      house: string;
+      car: string;
+      sale: string;
+    };
+  };
+  legal: {
+    termsLink: string;
+    privacyLink: string;
+    checkboxPrefix: string;
+    checkboxAnd: string;
+    checkboxRequiredError: string;
+    closeBtn: string;
+  };
+  moderation: {
+    flagBtn: string;
+    unflagBtn: string;
+    flaggedBadge: string;
+    flagModalTitle: string;
+    flagModalSubtitle: string;
+    reasonLabel: string;
+    customReasonLabel: string;
+    customReasonPlaceholder: string;
+    confirmFlagBtn: string;
+    confirmUnflagBtn: string;
+    deleteInsteadBtn: string;
+    reasonRequiredError: string;
+    reasons: {
+      irrelevant: string;
+      harmful: string;
+      inaccurate: string;
+      spam: string;
+    };
+  };
+  adminUsers: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    totalUsers: string;
+    searchPlaceholder: string;
+    refreshBtn: string;
+    loading: string;
+    emptyState: string;
+    backToListings: string;
+    colName: string;
+    colEmail: string;
+    colPhone: string;
+    colRole: string;
+    colSource: string;
+    colTerms: string;
+    colRegistered: string;
+    colActions: string;
+    sourceFirestore: string;
+    sourceServer: string;
+    termsAccepted: string;
+    termsPending: string;
+    adminBadge: string;
+    editBtn: string;
+    deleteBtn: string;
+    editModalTitle: string;
+    editModalSubtitle: string;
+    newPasswordLabel: string;
+    newPasswordPlaceholder: string;
+    saveUserBtn: string;
+    deleteModalTitle: string;
+    deleteModalConfirm: string;
+    firestoreNote: string;
+    updateSuccess: string;
+    deleteSuccess: string;
+  };
 }
 
 export const UI_TEXT: Record<SupportedLang, UIStrings> = {
@@ -240,6 +329,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     aboutHeading: '关于 JobSQUAD',
     aboutLead:
       '专为求职者高效寻觅良机而打造。我们消除信息壁垒，让雇主快速发布空缺岗位，让家庭与个人轻松完成租房、租车及本地闲置交易。',
+    aboutBadge: 'JobSQUAD 认证服务标准',
     aboutCards: [
       {
         title: '01. 精准招聘匹配',
@@ -250,8 +340,8 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
         body: '所有发帖用户均须完成账户注册与安全校验；房屋、汽车及商品发布强制要求上传实拍图片并公开有效联系电话。',
       },
       {
-        title: '03. 多语言与多币种同步',
-        body: '支持中文、英语、法语、西班牙语、宗喀语及瑞士德语一键切换，全站内容与价格货币实时自动转换。',
+        title: '03. 七国语言与多币种同步',
+        body: '支持中文、英语、法语、西班牙语、宗喀语、藏语及瑞士德语一键切换，全站内容与价格货币实时自动转换。',
       },
     ],
     recruitmentHeading: '招聘职位',
@@ -366,10 +456,29 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       imagesRequiredNote: '房屋、租车及出售信息必须上传至少 1 张实拍图片。',
       uploadHint: '点击选择图片文件（自动压缩以保证极速加载）',
       descriptionLabel: '详细描述',
-      submitCreate: '验证并发布（自动生成 6 国语言）',
+      scheduleLabel: '工作时间 / 合同类型',
+      scheduleOptions: {
+        'Full-Time': '全职',
+        'Part-Time': '兼职',
+        Flexible: '弹性安排',
+      },
+      submitCreate: '验证并发布（自动生成 7 国语言）',
       submitSave: '保存修改',
-      translating: '正在智能生成 6 国语言并保存...',
+      translating: '正在智能生成 7 国语言并保存...',
     },
+    specValues: {
+      Automatic: '自动挡',
+      Manual: '手动挡',
+      Electric: '纯电动',
+      Hybrid: '油电混动',
+      Petrol: '汽油',
+      Diesel: '柴油',
+      'Like New': '几乎全新',
+      Excellent: '成色极佳',
+      Good: '良好',
+    },
+    cancel: '取消',
+    ok: '确定',
     captchaLabel: '安全人机验证',
     captchaPlaceholder: '输入计算结果',
     chatbotTitle: 'JobSQUAD 在线客服助手',
@@ -380,6 +489,78 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     footerContactHeading: '联系方式',
     footerSocialHeading: '关注社交媒体',
     footerRights: '版权所有',
+    search: {
+      placeholder: '按关键词、职位、餐厅或城市搜索（招聘、租房、租车、集市）...',
+      button: '搜索',
+      clear: '清除搜索',
+      resultsFor: '搜索结果：',
+      matchesCount: '条匹配',
+      noResults: '未找到匹配的职位、房源、车辆或商品。',
+      typeLabels: { job: '招聘', house: '房屋', car: '租车', sale: '集市' },
+    },
+    legal: {
+      termsLink: '服务条款',
+      privacyLink: '隐私政策 (GDPR)',
+      checkboxPrefix: '我已阅读并同意',
+      checkboxAnd: '及',
+      checkboxRequiredError: '注册账户必须先勾选同意《服务条款》与《隐私政策》。',
+      closeBtn: '关闭',
+    },
+    moderation: {
+      flagBtn: '标记',
+      unflagBtn: '取消标记',
+      flaggedBadge: '管理员标记警示',
+      flagModalTitle: '管理员内容审核（标记或删除）',
+      flagModalSubtitle: '如该帖子涉嫌无关、有害或不实，可添加警示标记或直接删除。',
+      reasonLabel: '选择原因',
+      customReasonLabel: '补充说明（选填）',
+      customReasonPlaceholder: '请说明标记此帖子的原因...',
+      confirmFlagBtn: '标记此帖',
+      confirmUnflagBtn: '移除标记',
+      deleteInsteadBtn: '删除此帖',
+      reasonRequiredError: '请选择或填写标记原因。',
+      reasons: {
+        irrelevant: '内容无关',
+        harmful: '有害或不安全内容',
+        inaccurate: '信息不实或误导',
+        spam: '垃圾广告或欺诈',
+      },
+    },
+    adminUsers: {
+      sectionTitle: '管理员用户数据库管理',
+      sectionSubtitle: '查看、编辑、更新或删除已注册用户的账户信息（支持账户数据库与 Firestore）。',
+      totalUsers: '用户总数',
+      searchPlaceholder: '搜索姓名、邮箱、电话或身份...',
+      refreshBtn: '刷新列表',
+      loading: '正在加载用户数据...',
+      emptyState: '未找到符合条件的用户记录。',
+      backToListings: '返回全部帖子',
+      colName: '姓名',
+      colEmail: '电子邮箱',
+      colPhone: '联系电话',
+      colRole: '身份类型',
+      colSource: '数据来源',
+      colTerms: '服务条款',
+      colRegistered: '注册时间',
+      colActions: '操作',
+      sourceFirestore: 'Firestore 数据库',
+      sourceServer: '账户数据库',
+      termsAccepted: '已同意',
+      termsPending: '未确认',
+      adminBadge: '管理员',
+      editBtn: '编辑',
+      deleteBtn: '删除',
+      editModalTitle: '编辑用户信息',
+      editModalSubtitle: '更新用户姓名、邮箱、联系电话及账户身份。',
+      newPasswordLabel: '重置密码（选填，至少8位）',
+      newPasswordPlaceholder: '留空则保持原密码不变',
+      saveUserBtn: '保存更改',
+      deleteModalTitle: '删除用户账户',
+      deleteModalConfirm: '确定要从数据库中永久删除此用户账户吗？此操作无法撤销。',
+      firestoreNote: '如需同时读取并管理 Google/Firebase 云端用户资料，请使用管理员 Google 账号登录。',
+      updateSuccess: '用户信息已更新。',
+      deleteSuccess: '用户记录已删除。',
+    },
   },
   en: {
     contactUs: 'Contact Us',
@@ -408,6 +589,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     aboutHeading: 'About JobSQUAD',
     aboutLead:
       'Built to provide effortless solutions for job seekers and trusted community listings. Employers publish roles according to availability, and verified members manage rentals and sales in one secure hub.',
+    aboutBadge: 'JobSQUAD Verified Standard',
     aboutCards: [
       {
         title: '01. Direct Employer Connections',
@@ -418,8 +600,8 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
         body: 'All contributors register and pass security verification. House, car, and sales listings mandate real photo uploads and direct owner mobile numbers.',
       },
       {
-        title: '03. Six-Language Localization',
-        body: 'Switch seamlessly between Chinese, English, French, Spanish, Dzongkha, and Swiss German with automatic live currency conversion across every listing.',
+        title: '03. Seven-Language Localization',
+        body: 'Switch seamlessly between Chinese, English, French, Spanish, Dzongkha, Tibetan, and Swiss German with automatic live currency conversion across every listing.',
       },
     ],
     recruitmentHeading: 'Recruitment Vacancies',
@@ -534,10 +716,29 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       imagesRequiredNote: 'At least 1 uploaded photo is required for House, Car, and Sales listings.',
       uploadHint: 'Choose image files (automatically optimized)',
       descriptionLabel: 'Detailed Description',
-      submitCreate: 'Translate to 6 Languages & Publish',
+      scheduleLabel: 'Schedule / Contract',
+      scheduleOptions: {
+        'Full-Time': 'Full-Time',
+        'Part-Time': 'Part-Time',
+        Flexible: 'Flexible',
+      },
+      submitCreate: 'Translate to 7 Languages & Publish',
       submitSave: 'Save Changes',
       translating: 'Translating & publishing...',
     },
+    specValues: {
+      Automatic: 'Automatic',
+      Manual: 'Manual',
+      Electric: 'Electric',
+      Hybrid: 'Hybrid',
+      Petrol: 'Petrol',
+      Diesel: 'Diesel',
+      'Like New': 'Like New',
+      Excellent: 'Excellent',
+      Good: 'Good',
+    },
+    cancel: 'Cancel',
+    ok: 'OK',
     captchaLabel: 'Security CAPTCHA',
     captchaPlaceholder: 'Answer',
     chatbotTitle: 'JobSQUAD Online Help',
@@ -548,6 +749,78 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     footerContactHeading: 'Direct Contact',
     footerSocialHeading: 'Social Channels',
     footerRights: 'All rights reserved.',
+    search: {
+      placeholder: 'Search jobs, rentals, items or location...',
+      button: 'Search',
+      clear: 'Clear',
+      resultsFor: 'Search results for',
+      matchesCount: 'matches',
+      noResults: 'No matching jobs, rentals, or items found.',
+      typeLabels: { job: 'Job', house: 'House', car: 'Car', sale: 'Sale' },
+    },
+    legal: {
+      termsLink: 'Terms of Service',
+      privacyLink: 'Privacy Policy',
+      checkboxPrefix: 'I accept the',
+      checkboxAnd: 'including the',
+      checkboxRequiredError: 'You must check and accept the Terms of Service and Privacy Policy to create an account.',
+      closeBtn: 'Close',
+    },
+    moderation: {
+      flagBtn: 'Flag',
+      unflagBtn: 'Unflag',
+      flaggedBadge: 'Flagged by Administrator',
+      flagModalTitle: 'Moderate Listing — Flag or Delete',
+      flagModalSubtitle: 'Flag this post with a public warning if it appears irrelevant, harmful, or inaccurate, or delete it permanently.',
+      reasonLabel: 'Moderation Reason',
+      customReasonLabel: 'Additional Note (Optional)',
+      customReasonPlaceholder: 'Describe why this post is flagged...',
+      confirmFlagBtn: 'Flag Post',
+      confirmUnflagBtn: 'Remove Flag',
+      deleteInsteadBtn: 'Delete Post',
+      reasonRequiredError: 'Please select or enter a moderation reason.',
+      reasons: {
+        irrelevant: 'Irrelevant content',
+        harmful: 'Harmful or unsafe',
+        inaccurate: 'Inaccurate or misleading',
+        spam: 'Spam or scam',
+      },
+    },
+    adminUsers: {
+      sectionTitle: 'User Database Administration',
+      sectionSubtitle: 'View, edit, update, and delete registered user profiles across the application databases.',
+      totalUsers: 'Total Users',
+      searchPlaceholder: 'Search by name, email, phone, or role...',
+      refreshBtn: 'Refresh',
+      loading: 'Loading user accounts...',
+      emptyState: 'No user accounts match your filter.',
+      backToListings: 'Back to All Listings',
+      colName: 'Name',
+      colEmail: 'Email',
+      colPhone: 'Phone',
+      colRole: 'Role',
+      colSource: 'Database',
+      colTerms: 'Terms',
+      colRegistered: 'Registered',
+      colActions: 'Actions',
+      sourceFirestore: 'Firestore DB',
+      sourceServer: 'Account DB',
+      termsAccepted: 'Accepted',
+      termsPending: 'Pending',
+      adminBadge: 'Admin',
+      editBtn: 'Edit',
+      deleteBtn: 'Delete',
+      editModalTitle: 'Edit User Information',
+      editModalSubtitle: 'Update display name, email address, phone number, and account role.',
+      newPasswordLabel: 'Reset Password (Optional, min 8 chars)',
+      newPasswordPlaceholder: 'Leave blank to keep existing password',
+      saveUserBtn: 'Update User',
+      deleteModalTitle: 'Delete User Account',
+      deleteModalConfirm: 'Are you sure you want to permanently remove this user from the database? This cannot be undone.',
+      firestoreNote: 'Sign in with Google as Administrator to also view and manage cloud Firestore user records.',
+      updateSuccess: 'User information updated.',
+      deleteSuccess: 'User removed from database.',
+    },
   },
   fr: {
     contactUs: 'Contactez-nous',
@@ -576,6 +849,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     aboutHeading: 'À propos de JobSQUAD',
     aboutLead:
       'Conçu pour simplifier la recherche d’emploi et sécuriser les annonces locales : emploi, immobilier, véhicules et ventes entre particuliers.',
+    aboutBadge: 'Standard Vérifié JobSQUAD',
     aboutCards: [
       {
         title: '01. Recrutement direct',
@@ -586,8 +860,8 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
         body: 'Tous les annonceurs sont inscrits et vérifiés. Les annonces immobilières, automobiles et ventes exigent photos et numéro de mobile.',
       },
       {
-        title: '03. Six langues & devises',
-        body: 'Basculez entre chinois, français, anglais, espagnol, dzongkha et suisse allemand avec conversion automatique des prix.',
+        title: '03. Sept langues & devises',
+        body: 'Basculez entre chinois, français, anglais, espagnol, dzongkha, tibétain et suisse allemand avec conversion automatique des prix.',
       },
     ],
     recruitmentHeading: 'Offres d’emploi',
@@ -702,10 +976,29 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       imagesRequiredNote: 'Au moins 1 photo est requise pour Maisons, Voitures et Ventes.',
       uploadHint: 'Sélectionner des images',
       descriptionLabel: 'Description détaillée',
-      submitCreate: 'Traduire en 6 langues et publier',
+      scheduleLabel: 'Horaire / Contrat',
+      scheduleOptions: {
+        'Full-Time': 'Temps plein',
+        'Part-Time': 'Temps partiel',
+        Flexible: 'Flexible',
+      },
+      submitCreate: 'Traduire en 7 langues et publier',
       submitSave: 'Enregistrer',
       translating: 'Traduction et publication...',
     },
+    specValues: {
+      Automatic: 'Automatique',
+      Manual: 'Manuelle',
+      Electric: 'Électrique',
+      Hybrid: 'Hybride',
+      Petrol: 'Essence',
+      Diesel: 'Diesel',
+      'Like New': 'Comme neuf',
+      Excellent: 'Excellent état',
+      Good: 'Bon état',
+    },
+    cancel: 'Annuler',
+    ok: 'OK',
     captchaLabel: 'Vérification CAPTCHA',
     captchaPlaceholder: 'Réponse',
     chatbotTitle: 'Aide en ligne JobSQUAD',
@@ -716,6 +1009,78 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     footerContactHeading: 'Coordonnées',
     footerSocialHeading: 'Réseaux sociaux',
     footerRights: 'Tous droits réservés.',
+    search: {
+      placeholder: 'Rechercher un emploi, une location, un article ou une ville...',
+      button: 'Rechercher',
+      clear: 'Effacer',
+      resultsFor: 'Résultats pour',
+      matchesCount: 'résultats',
+      noResults: 'Aucune annonce correspondante trouvée.',
+      typeLabels: { job: 'Emploi', house: 'Maison', car: 'Voiture', sale: 'Vente' },
+    },
+    legal: {
+      termsLink: 'Conditions d’utilisation',
+      privacyLink: 'Politique de confidentialité',
+      checkboxPrefix: 'J’accepte les',
+      checkboxAnd: 'incluant la',
+      checkboxRequiredError: 'Vous devez obligatoirement accepter les Conditions d’utilisation et la Politique de confidentialité pour créer un compte.',
+      closeBtn: 'Fermer',
+    },
+    moderation: {
+      flagBtn: 'Signaler',
+      unflagBtn: 'Retirer le signalement',
+      flaggedBadge: 'Signalé par l’administrateur',
+      flagModalTitle: 'Modérer l’annonce — Signaler ou Supprimer',
+      flagModalSubtitle: 'Signalez cette annonce si elle est hors sujet, nuisible ou inexacte, ou supprimez-la définitivement.',
+      reasonLabel: 'Motif de modération',
+      customReasonLabel: 'Précision complémentaire (Optionnel)',
+      customReasonPlaceholder: 'Expliquez pourquoi cette annonce est signalée...',
+      confirmFlagBtn: 'Signaler l’annonce',
+      confirmUnflagBtn: 'Retirer le signalement',
+      deleteInsteadBtn: 'Supprimer l’annonce',
+      reasonRequiredError: 'Veuillez sélectionner ou saisir un motif.',
+      reasons: {
+        irrelevant: 'Contenu hors sujet',
+        harmful: 'Contenu nuisible ou dangereux',
+        inaccurate: 'Inexact ou trompeur',
+        spam: 'Spam ou arnaque',
+      },
+    },
+    adminUsers: {
+      sectionTitle: 'Administration de la base utilisateurs',
+      sectionSubtitle: 'Consulter, modifier, mettre à jour et supprimer les comptes utilisateurs enregistrés.',
+      totalUsers: 'Utilisateurs',
+      searchPlaceholder: 'Rechercher par nom, e-mail, téléphone ou rôle...',
+      refreshBtn: 'Actualiser',
+      loading: 'Chargement des utilisateurs...',
+      emptyState: 'Aucun utilisateur ne correspond à votre recherche.',
+      backToListings: 'Retour aux annonces',
+      colName: 'Nom',
+      colEmail: 'E-mail',
+      colPhone: 'Téléphone',
+      colRole: 'Rôle',
+      colSource: 'Base',
+      colTerms: 'CGU',
+      colRegistered: 'Inscription',
+      colActions: 'Actions',
+      sourceFirestore: 'Firestore DB',
+      sourceServer: 'Base Comptes',
+      termsAccepted: 'Acceptées',
+      termsPending: 'En attente',
+      adminBadge: 'Admin',
+      editBtn: 'Modifier',
+      deleteBtn: 'Supprimer',
+      editModalTitle: 'Modifier l’utilisateur',
+      editModalSubtitle: 'Mettre à jour le nom, l’e-mail, le téléphone et le type de compte.',
+      newPasswordLabel: 'Nouveau mot de passe (Optionnel, min 8 car.)',
+      newPasswordPlaceholder: 'Laisser vide pour conserver l’actuel',
+      saveUserBtn: 'Mettre à jour',
+      deleteModalTitle: 'Supprimer le compte utilisateur',
+      deleteModalConfirm: 'Voulez-vous vraiment supprimer définitivement cet utilisateur de la base de données ?',
+      firestoreNote: 'Connectez-vous via Google Admin pour gérer également les profils Firestore.',
+      updateSuccess: 'Informations utilisateur mises à jour.',
+      deleteSuccess: 'Utilisateur supprimé de la base.',
+    },
   },
   es: {
     contactUs: 'Contáctanos',
@@ -744,6 +1109,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     aboutHeading: 'Sobre JobSQUAD',
     aboutLead:
       'Diseñado para ofrecer soluciones reales a quienes buscan empleo y una comunidad segura para alquileres y ventas locales.',
+    aboutBadge: 'Estándar Verificado JobSQUAD',
     aboutCards: [
       {
         title: '01. Contacto directo con empleadores',
@@ -754,8 +1120,8 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
         body: 'Todo usuario debe registrarse. Casas, coches y ventas requieren subir fotos reales y número móvil obligatorio.',
       },
       {
-        title: '03. Seis idiomas y divisas',
-        body: 'Cambia entre chino, inglés, francés, español, dzongkha y alemán suizo con conversión automática de moneda.',
+        title: '03. Siete idiomas y divisas',
+        body: 'Cambia entre chino, inglés, francés, español, dzongkha, tibetano y alemán suizo con conversión automática de moneda.',
       },
     ],
     recruitmentHeading: 'Vacantes de empleo',
@@ -870,10 +1236,29 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       imagesRequiredNote: 'Se requiere al menos 1 foto para Casas, Coches y Ventas.',
       uploadHint: 'Seleccionar imágenes',
       descriptionLabel: 'Descripción detallada',
-      submitCreate: 'Traducir a 6 idiomas y publicar',
+      scheduleLabel: 'Horario / Contrato',
+      scheduleOptions: {
+        'Full-Time': 'Tiempo completo',
+        'Part-Time': 'Media jornada',
+        Flexible: 'Flexible',
+      },
+      submitCreate: 'Traducir a 7 idiomas y publicar',
       submitSave: 'Guardar cambios',
       translating: 'Traduciendo y publicando...',
     },
+    specValues: {
+      Automatic: 'Automático',
+      Manual: 'Manual',
+      Electric: 'Eléctrico',
+      Hybrid: 'Híbrido',
+      Petrol: 'Gasolina',
+      Diesel: 'Diésel',
+      'Like New': 'Como nuevo',
+      Excellent: 'Excelente',
+      Good: 'Bueno',
+    },
+    cancel: 'Cancelar',
+    ok: 'Aceptar',
     captchaLabel: 'Verificación CAPTCHA',
     captchaPlaceholder: 'Respuesta',
     chatbotTitle: 'Asistente en línea JobSQUAD',
@@ -884,6 +1269,78 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     footerContactHeading: 'Contacto directo',
     footerSocialHeading: 'Redes sociales',
     footerRights: 'Todos los derechos reservados.',
+    search: {
+      placeholder: 'Buscar empleos, alquileres, artículos o ciudad...',
+      button: 'Buscar',
+      clear: 'Limpiar',
+      resultsFor: 'Resultados para',
+      matchesCount: 'resultados',
+      noResults: 'No se encontraron anuncios coincidentes.',
+      typeLabels: { job: 'Empleo', house: 'Casa', car: 'Coche', sale: 'Venta' },
+    },
+    legal: {
+      termsLink: 'Términos de Servicio',
+      privacyLink: 'Política de Privacidad',
+      checkboxPrefix: 'Acepto los',
+      checkboxAnd: 'incluida la',
+      checkboxRequiredError: 'Es obligatorio marcar y aceptar los Términos de Servicio y la Política de Privacidad para crear una cuenta.',
+      closeBtn: 'Cerrar',
+    },
+    moderation: {
+      flagBtn: 'Marcar',
+      unflagBtn: 'Quitar marca',
+      flaggedBadge: 'Marcado por el administrador',
+      flagModalTitle: 'Moderar anuncio — Marcar o Eliminar',
+      flagModalSubtitle: 'Marca este anuncio si es irrelevante, dañino o inexacto, o elimínalo definitivamente.',
+      reasonLabel: 'Motivo de moderación',
+      customReasonLabel: 'Detalle adicional (Opcional)',
+      customReasonPlaceholder: 'Explica el motivo de la advertencia...',
+      confirmFlagBtn: 'Marcar anuncio',
+      confirmUnflagBtn: 'Quitar marca',
+      deleteInsteadBtn: 'Eliminar anuncio',
+      reasonRequiredError: 'Selecciona o escribe un motivo.',
+      reasons: {
+        irrelevant: 'Contenido irrelevante',
+        harmful: 'Dañino o inseguro',
+        inaccurate: 'Inexacto o engañoso',
+        spam: 'Spam o fraude',
+      },
+    },
+    adminUsers: {
+      sectionTitle: 'Administración de Base de Usuarios',
+      sectionSubtitle: 'Ver, editar, actualizar y eliminar la información de los usuarios registrados.',
+      totalUsers: 'Usuarios',
+      searchPlaceholder: 'Buscar por nombre, correo, teléfono o rol...',
+      refreshBtn: 'Actualizar',
+      loading: 'Cargando usuarios...',
+      emptyState: 'No se encontraron usuarios con ese criterio.',
+      backToListings: 'Volver a anuncios',
+      colName: 'Nombre',
+      colEmail: 'Correo',
+      colPhone: 'Teléfono',
+      colRole: 'Rol',
+      colSource: 'Base',
+      colTerms: 'Términos',
+      colRegistered: 'Registro',
+      colActions: 'Acciones',
+      sourceFirestore: 'Firestore DB',
+      sourceServer: 'Base Cuentas',
+      termsAccepted: 'Aceptados',
+      termsPending: 'Pendiente',
+      adminBadge: 'Admin',
+      editBtn: 'Editar',
+      deleteBtn: 'Eliminar',
+      editModalTitle: 'Editar Información de Usuario',
+      editModalSubtitle: 'Actualiza el nombre, correo electrónico, teléfono y rol de la cuenta.',
+      newPasswordLabel: 'Restablecer contraseña (Opcional, mín. 8 caracteres)',
+      newPasswordPlaceholder: 'Dejar vacío para mantener la actual',
+      saveUserBtn: 'Guardar cambios',
+      deleteModalTitle: 'Eliminar cuenta de usuario',
+      deleteModalConfirm: '¿Seguro que deseas eliminar permanentemente a este usuario de la base de datos?',
+      firestoreNote: 'Inicia sesión con Google Admin para gestionar también los registros de Firestore.',
+      updateSuccess: 'Información del usuario actualizada.',
+      deleteSuccess: 'Usuario eliminado de la base de datos.',
+    },
   },
   dz: {
     contactUs: 'འབྲེལ་བ་འཐབ།',
@@ -912,6 +1369,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     aboutHeading: 'JobSQUAD གི་སྐོར།',
     aboutLead:
       'གཡོག་འཚོལ་མི་ཚུ་ལུ་ གཡོག་གོ་སྐབས་འཇམ་སམ་སྦེ་འཐོབ་ཚུགས་ནི་དང་ ཁྱིམ་གླ་དང་སྣུམ་འཁོར་ ཉོ་ཚོང་ཚུ་ཉེན་སྲུང་ཅན་སྦེ་བཀོད་སྒྲིག་འབད་བའི་སྟེགས་བུ་ཨིན།',
+    aboutBadge: 'JobSQUAD བདེན་དཔྱད་ཚད་གཞི།',
     aboutCards: [
       {
         title: '01. གཡོག་བདག་དང་ཐད་ཀར་འབྲེལ་བ།',
@@ -922,8 +1380,8 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
         body: 'ཁྱིམ་གླ་དང་སྣུམ་འཁོར་ ཉོ་ཚོང་ཅ་ལག་ཚུ་ལུ་ དཔར་དང་འགྲུལ་འཕྲིན་ཨང་གྲངས་ངེས་པར་དུ་བཙུགས་དགོ།',
       },
       {
-        title: '03. སྐད་ཡིག་དྲུག་དང་དངུལ་ཀྲམ།',
-        body: 'རྒྱ་ནག་ ཨིང་ལིཤ་ ཕེ་རེནཆ་ ཨིསི་པེ་ནིཤ་ རྫོང་ཁ་ དང་ སུ་ཝིསི་ཇར་མཱན་བཅས་ཀྱི་སྐད་ཡིག་དང་དངུལ་ཀྲམ་རང་བཞིན་གྱིས་བསྒྱུརཝ་ཨིན།',
+        title: '03. སྐད་ཡིག་བདུན་དང་དངུལ་ཀྲམ།',
+        body: 'རྒྱ་ནག་ ཨིང་ལིཤ་ ཕེ་རེནཆ་ ཨིསི་པེ་ནིཤ་ རྫོང་ཁ་ བོད་སྐད་ དང་ སུ་ཝིསི་ཇར་མཱན་བཅས་ཀྱི་སྐད་ཡིག་དང་དངུལ་ཀྲམ་རང་བཞིན་གྱིས་བསྒྱུརཝ་ཨིན།',
       },
     ],
     recruitmentHeading: 'གཡོག་བསྡུའི་གསལ་བསྒྲགས།',
@@ -1038,10 +1496,29 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       imagesRequiredNote: 'ཁྱིམ་གླ་དང་སྣུམ་འཁོར་ ཉོ་ཚོང་ལུ་དཔར་ཉུང་ཤོས་ ༡ ངེས་པར་དགོ།',
       uploadHint: 'དཔར་གདམ་ཁ་རྐྱབས།',
       descriptionLabel: 'ཁ་གསལ་འགྲེལ་བཤད།',
-      submitCreate: 'སྐད་ཡིག་ ༦ ནང་བསྒྱུར་ཏེ་སྤེལ།',
+      scheduleLabel: 'ལས་རིམ་ / གན་རྒྱ།',
+      scheduleOptions: {
+        'Full-Time': 'དུས་ཚོད་ཆ་ཚང་།',
+        'Part-Time': 'དུས་ཚོད་ཕྱེད།',
+        Flexible: 'སྒྱུར་བཅོས་བཏུབ།',
+      },
+      submitCreate: 'སྐད་ཡིག་ ༧ ནང་བསྒྱུར་ཏེ་སྤེལ།',
       submitSave: 'བསྒྱུར་བཅོས་སྲུང་།',
       translating: 'བསྒྱུར་བཞིན་པ...',
     },
+    specValues: {
+      Automatic: 'རང་འགུལ།',
+      Manual: 'ལག་འགུལ།',
+      Electric: 'གློག་ཤུགས།',
+      Hybrid: 'ཧའི་བི་རིཌ།',
+      Petrol: 'པེ་ཊོལ།',
+      Diesel: 'ཌི་ཟལ།',
+      'Like New': 'གསརཔ་བཟུམ།',
+      Excellent: 'ལེགས་ཤོམ།',
+      Good: 'བཟང་པོ།',
+    },
+    cancel: 'ཆ་མེད་གཏང་།',
+    ok: 'བཏུབ།',
     captchaLabel: 'ཉེན་སྲུང་རྩིས་བཤེར།',
     captchaPlaceholder: 'ལན།',
     chatbotTitle: 'JobSQUAD གྲོགས་རམ་པ།',
@@ -1052,6 +1529,78 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     footerContactHeading: 'འབྲེལ་གཏུགས།',
     footerSocialHeading: 'མི་སྡེ་བརྡ་བརྒྱུད།',
     footerRights: 'དབང་ཆ་ཆ་མཉམ་བསྲུངས།',
+    search: {
+      placeholder: 'གཡོག་དང་ཁྱིམ་གླ་ སྣུམ་འཁོར་ ཅ་ལག་ ཡང་ན་ས་གནས་འཚོལ...',
+      button: 'འཚོལ།',
+      clear: 'གཙང་སེལ།',
+      resultsFor: 'འཚོལ་ཞིབ་གྲུབ་འབྲས:',
+      matchesCount: 'མཐུན་པ།',
+      noResults: 'མཐུན་པའི་གསལ་བསྒྲགས་མ་ཐོབ།',
+      typeLabels: { job: 'གཡོག', house: 'ཁྱིམ།', car: 'སྣུམ་འཁོར།', sale: 'ཉོ་ཚོང་།' },
+    },
+    legal: {
+      termsLink: 'ཞབས་ཏོག་ཆ་རྐྱེན།',
+      privacyLink: 'སྒེར་དོན་སྲིད་བྱུས།',
+      checkboxPrefix: 'ངེད་ཀྱིས་',
+      checkboxAnd: 'དང་',
+      checkboxRequiredError: 'རྩིས་ཐོ་གསར་བཟོ་འབད་ནི་དོན་ལུ་ ཞབས་ཏོག་ཆ་རྐྱེན་དང་སྒེར་དོན་སྲིད་བྱུས་ངེས་པར་དུ་ཁས་ལེན་དགོ།',
+      closeBtn: 'ཁ་བསྡམས།',
+    },
+    moderation: {
+      flagBtn: 'རྟགས་བཀོད།',
+      unflagBtn: 'རྟགས་བཏོན།',
+      flaggedBadge: 'བདག་སྐྱོང་པས་རྟགས་བཀོད་པ།',
+      flagModalTitle: 'གསལ་བསྒྲགས་བདག་སྐྱོང་ — རྟགས་བཀོད་དམ་བཏོན་གཏང་།',
+      flagModalSubtitle: 'འབྲེལ་མེད་དམ་གནོད་སྐྱོན་ཅན་ བདེན་མེད་ཡིན་པ་ཅིན་ རྟགས་བཀོད་པའམ་བཏོན་གཏང་ཚུགས།',
+      reasonLabel: 'རྒྱུ་མཚན།',
+      customReasonLabel: 'ཁ་གསལ་ (གདམ་ཁ)',
+      customReasonPlaceholder: 'རྟགས་བཀོད་པའི་རྒྱུ་མཚན་འབྲི་གནང་...',
+      confirmFlagBtn: 'རྟགས་བཀོད།',
+      confirmUnflagBtn: 'རྟགས་ཕྱིར་འཐེན།',
+      deleteInsteadBtn: 'བཏོན་གཏང་།',
+      reasonRequiredError: 'རྒྱུ་མཚན་ཅིག་གདམ་ཁ་རྐྱབས་གནང་།',
+      reasons: {
+        irrelevant: 'འབྲེལ་མེད་ནང་དོན།',
+        harmful: 'གནོད་སྐྱོན་ཅན།',
+        inaccurate: 'བདེན་མེད་འཛོལ་བ།',
+        spam: 'གད་སྙིགས་དྲིལ་བསྒྲགས།',
+      },
+    },
+    adminUsers: {
+      sectionTitle: 'ལག་ལེན་པའི་གནས་སྡུད་བདག་སྐྱོང་།',
+      sectionSubtitle: 'ཐོ་བཀོད་འབད་མི་ལག་ལེན་པའི་གནས་ཚུལ་བལྟ་ནི་ ཞུན་དག་དང་དུས་མཐུན་ དེ་ལས་བཏོན་གཏང་ནི།',
+      totalUsers: 'ལག་ལེན་པ་བསྡོམས།',
+      searchPlaceholder: 'མིང་ གློག་འཕྲིན་ འགྲུལ་འཕྲིན་ ཡང་ན་འགན་ཁུར་འཚོལ་ཞིབ...',
+      refreshBtn: 'གསར་སྒྱུར།',
+      loading: 'ལག་ལེན་པའི་གནས་སྡུད་མངོན་འབད་དོ...',
+      emptyState: 'འཚོལ་ཞིབ་དང་མཐུན་པའི་ལག་ལེན་པ་མ་ཐོབ།',
+      backToListings: 'གསལ་བསྒྲགས་ཆ་མཉམ་ལུ་ལོག',
+      colName: 'མིང་།',
+      colEmail: 'གློག་འཕྲིན།',
+      colPhone: 'བརྒྱུད་འཕྲིན།',
+      colRole: 'འགན་ཁུར།',
+      colSource: 'གནས་སྡུད།',
+      colTerms: 'ཆ་རྐྱེན།',
+      colRegistered: 'ཐོ་བཀོད་ཚེས།',
+      colActions: 'བྱ་བ།',
+      sourceFirestore: 'Firestore DB',
+      sourceServer: 'རྩིས་ཐོ་གནས་སྡུད།',
+      termsAccepted: 'ཁས་ལེན་ཡོད།',
+      termsPending: 'ཁས་ལེན་མེད།',
+      adminBadge: 'བདག་སྐྱོང་པ།',
+      editBtn: 'ཞུན་དག',
+      deleteBtn: 'བཏོན་གཏང་།',
+      editModalTitle: 'ལག་ལེན་པའི་གནས་ཚུལ་ཞུན་དག',
+      editModalSubtitle: 'མིང་ གློག་འཕྲིན་ བརྒྱུད་འཕྲིན་དང་རྩིས་ཐོའི་དབྱེ་ཁག་དུས་མཐུན་བཟོ།',
+      newPasswordLabel: 'གསང་ཚིག་གསར་བཟོ་ (གདམ་ཁ ཉུང་ཤོས་ ༨)',
+      newPasswordPlaceholder: 'སྔར་གྱི་གསང་ཚིག་བཞག་པར་སྟོང་པ་བཞག',
+      saveUserBtn: 'དུས་མཐུན་བཟོ།',
+      deleteModalTitle: 'ལག་ལེན་པའི་རྩིས་ཐོ་བཏོན་གཏང་།',
+      deleteModalConfirm: 'ལག་ལེན་པ་འདི་གནས་སྡུད་མཛོད་ལས་གཏན་དུ་བཏོན་གཏང་ནི་ཨིན་ན?',
+      firestoreNote: 'Firestore ལག་ལེན་པ་བདག་སྐྱོང་འབད་ནིར་ Google བདག་སྐྱོང་པ་ཐོག་ནང་འཛུལ་འབད་གནང་།',
+      updateSuccess: 'ལག་ལེན་པའི་གནས་ཚུལ་དུས་མཐུན་བཟོ་ཡོད།',
+      deleteSuccess: 'ལག་ལེན་པ་བཏོན་གཏང་ཡོད།',
+    },
   },
   gsw: {
     contactUs: 'Kontakt',
@@ -1080,6 +1629,7 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     aboutHeading: 'Über JobSQUAD',
     aboutLead:
       'Für Stellensuechendi entwicklet, damit me unkompliziert passendi Jobs findet und i de Region sicher cha miete, vermiete und verchaufe.',
+    aboutBadge: 'JobSQUAD Geprüefte Standard',
     aboutCards: [
       {
         title: '01. Direkte Kontakt zu Arbetgäber',
@@ -1090,8 +1640,8 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
         body: 'Für Hus-, Auto- und Verchaufsinserat sind Fotis und e gültigi Handynummere zwingend erforderlich.',
       },
       {
-        title: '03. Sächs Sprache & Währige',
-        body: 'Jederzyt zwüsche Chinesisch, Änglisch, Französisch, Spanisch, Dzongkha und Schwiizerdütsch inkl. Währig wächsle.',
+        title: '03. Sibe Sprache & Währige',
+        body: 'Jederzyt zwüsche Chinesisch, Änglisch, Französisch, Spanisch, Dzongkha, Tibetisch und Schwiizerdütsch inkl. Währig wächsle.',
       },
     ],
     recruitmentHeading: 'Stelleaagebot',
@@ -1206,10 +1756,29 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       imagesRequiredNote: 'Mindestens 1 Bild isch für Hüser, Autos und Verchauf nötig.',
       uploadHint: 'Bilddateie uswähle',
       descriptionLabel: 'Beschriibig',
-      submitCreate: 'I 6 Sprache übersetze & publiziere',
+      scheduleLabel: 'Pensum / Vertrag',
+      scheduleOptions: {
+        'Full-Time': 'Vollzyt',
+        'Part-Time': 'Teilzyt',
+        Flexible: 'Flexibel',
+      },
+      submitCreate: 'I 7 Sprache übersetze & publiziere',
       submitSave: 'Änderige spichere',
       translating: 'Wird übersetzt und publiziert...',
     },
+    specValues: {
+      Automatic: 'Automat',
+      Manual: 'Handschaltig',
+      Electric: 'Elektro',
+      Hybrid: 'Hybrid',
+      Petrol: 'Benzin',
+      Diesel: 'Diesel',
+      'Like New': 'Wie neu',
+      Excellent: 'Sehr guet',
+      Good: 'Guet',
+    },
+    cancel: 'Abbräche',
+    ok: 'OK',
     captchaLabel: 'Sicherheits-CAPTCHA',
     captchaPlaceholder: 'Ergebnis',
     chatbotTitle: 'JobSQUAD Online-Hilf',
@@ -1220,5 +1789,337 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
     footerContactHeading: 'Kontakt',
     footerSocialHeading: 'Social Media',
     footerRights: 'Alli Rächt vorbehalte.',
+    search: {
+      placeholder: 'Nach Jobs, Mietobjekt, Artikel oder Ort sueche...',
+      button: 'Sueche',
+      clear: 'Lösche',
+      resultsFor: 'Suchergebnis für',
+      matchesCount: 'Träffer',
+      noResults: 'Kei passendi Inserat gfunde.',
+      typeLabels: { job: 'Job', house: 'Hus', car: 'Auto', sale: 'Verchauf' },
+    },
+    legal: {
+      termsLink: 'Nutzigsbedingige',
+      privacyLink: 'Dateschutzerklärig',
+      checkboxPrefix: 'Ich akzeptiere d',
+      checkboxAnd: 'inklusive',
+      checkboxRequiredError: 'Si müend d Nutzigsbedingige und Dateschutzerklärig zwingend aachrüze, zum es Konto z erstelle.',
+      closeBtn: 'Schliesse',
+    },
+    moderation: {
+      flagBtn: 'Markiere',
+      unflagBtn: 'Markierig uufhebe',
+      flaggedBadge: 'Vom Admin markiert',
+      flagModalTitle: 'Inserat moderiere — Markiere oder Lösche',
+      flagModalSubtitle: 'Markiered Si das Inserat bi irrelevante, schädliche oder unrichtige Aagabe oder lösched Si es.',
+      reasonLabel: 'Grund',
+      customReasonLabel: 'Zuesätzlechi Notiz (Optional)',
+      customReasonPlaceholder: 'Grund für d Markierig aagäh...',
+      confirmFlagBtn: 'Inserat markiere',
+      confirmUnflagBtn: 'Markierig lösche',
+      deleteInsteadBtn: 'Inserat lösche',
+      reasonRequiredError: 'Bitte e Grund uswähle oder iigäh.',
+      reasons: {
+        irrelevant: 'Irrelevante Inhalt',
+        harmful: 'Schädlich oder unsicher',
+        inaccurate: 'Unrichtig oder irrefüehrend',
+        spam: 'Spam oder Betrug',
+      },
+    },
+    adminUsers: {
+      sectionTitle: 'Benutzer-Datebank Verwaltig',
+      sectionSubtitle: 'Registrierti Benutzerkontene aaluege, bearbeite, aktualisiere und us de Datebank lösche.',
+      totalUsers: 'Benutzer',
+      searchPlaceholder: 'Nach Name, E-Mail, Telefon oder Rolle sueche...',
+      refreshBtn: 'Aktualisiere',
+      loading: 'Benutzer werded glade...',
+      emptyState: 'Kei passende Benutzer gfunde.',
+      backToListings: 'Zrugg zu allne Inserat',
+      colName: 'Name',
+      colEmail: 'E-Mail',
+      colPhone: 'Telefon',
+      colRole: 'Rolle',
+      colSource: 'Datebank',
+      colTerms: 'AGB',
+      colRegistered: 'Registriert',
+      colActions: 'Aktione',
+      sourceFirestore: 'Firestore DB',
+      sourceServer: 'Konto-DB',
+      termsAccepted: 'Akzeptiert',
+      termsPending: 'Uusstehnd',
+      adminBadge: 'Admin',
+      editBtn: 'Bearbeite',
+      deleteBtn: 'Lösche',
+      editModalTitle: 'Benutzerdate bearbeite',
+      editModalSubtitle: 'Name, E-Mail-Adresse, Telefonnummere und Kontorolle aktualisiere.',
+      newPasswordLabel: 'Passwort zruggsetze (Optional, min. 8 Zeiche)',
+      newPasswordPlaceholder: 'Leer lah zum bhalte',
+      saveUserBtn: 'Speichere',
+      deleteModalTitle: 'Benutzerkonto lösche',
+      deleteModalConfirm: 'Sind Si sicher, dass Si de Benutzer duerhaft us de Datebank lösche wänd?',
+      firestoreNote: 'Mit Google Admin aamälde, zum au Firestore-Benutzerprofil z verwalte.',
+      updateSuccess: 'Benutzerdate aktualisiert.',
+      deleteSuccess: 'Benutzer glöscht.',
+    },
+  },
+  bo: {
+    contactUs: 'འབྲེལ་བ་གནང་།',
+    navAbout: 'ངེད་ཚོའི་སྐོར།',
+    navRecruitment: 'ལས་ཀའི་ས་མིག',
+    navRentals: 'ཁང་གླ་དང་རླངས་འཁོར།',
+    navHouse: 'ཁང་པ་གླ་གཏོང་།',
+    navCar: 'རླངས་འཁོར་གླ་གཏོང་།',
+    navSales: 'ཉོ་ཚོང་ཁྲོམ་ར།',
+    navLookingForJob: 'LOOKING FOR JOB',
+    registerLogin: 'ཐོ་འགོད་ / ནང་འཛུལ།',
+    postListing: 'གསལ་བསྒྲགས་སྤེལ།',
+    postLookingForJob: 'LOOKING FOR JOB སྤེལ།',
+    myPosts: 'ངའི་གསལ་བསྒྲགས།',
+    adminPanel: 'དོ་དམ་པའི་སྡེ་ཚན།',
+    signOut: 'ཕྱིར་ཐོན།',
+    heroTitle: 'འཇོན་ཐང་ཅན་དང་ཁང་པ། ས་གནས་ཚོང་ལས་བཅས་ཡིད་རྟོན་ངང་སྦྲེལ་མཐུད།',
+    heroSubtitle:
+      'JobSQUAD ཡིས་ལས་ཀ་འཚོལ་མཁན་རྣམས་ལ་ཁུངས་ལྡན་གྱི་ལས་ཀའི་གོ་སྐབས་སྟབས་བདེར་རྙེད་ཐུབ་པ་དང་། ཐོ་འགོད་ཟིན་པའི་ཚོགས་མི་རྣམས་ལ་ཁང་པ་གླ་གཏོང་དང་རླངས་འཁོར། ས་གནས་ཉོ་ཚོང་བཅས་བདེ་འཇགས་ངང་སྤེལ་ཐུབ།',
+    heroCtaPrimary: 'ལས་ཀའི་ས་མིག་བལྟ།',
+    heroCtaSecondary: 'གསལ་བསྒྲགས་སྤེལ།',
+    statJobs: 'ལས་ཀའི་ས་མིག',
+    statHouses: 'གླ་གཏོང་ཁང་པ།',
+    statCars: 'གླ་གཏོང་རླངས་འཁོར།',
+    statSales: 'ཉོ་ཚོང་དངོས་པོ།',
+    aboutHeading: 'JobSQUAD ཡི་སྐོར།',
+    aboutLead:
+      'ལས་ཀ་འཚོལ་མཁན་རྣམས་ལ་སྟབས་བདེའི་ཐབས་ལམ་བསྐྲུན་པ་དང་། སྤྱི་ཚོགས་ཀྱི་ཡིད་རྟོན་ཅན་གྱི་གསལ་བསྒྲགས་ཁང་གླ་དང་རླངས་འཁོར། ཉོ་ཚོང་བཅས་བདེ་འཇགས་སྟེགས་བུ་གཅིག་ཏུ་བསྡུས་ཡོད།',
+    aboutBadge: 'JobSQUAD ཁུངས་ལྡན་ཞབས་ཞུའི་ཚད་གཞི།',
+    aboutCards: [
+      {
+        title: '༠༡། ལས་བདག་དང་ཐད་ཀར་འབྲེལ་མཐུད།',
+        body: 'བྱིས་པ་ལྟ་སྐྱོང་དང་ཟ་ཁང་། ཨར་ལས། གཙང་སྦྲ། རྒན་གསོ་ལྟ་སྐྱོང་། རོགས་པ་བཅས་ཀྱི་སྡེ་ཚན་ནང་གློག་འཕྲིན་ཐོག་ནས་ལས་བདག་ལ་ཐད་ཀར་འབྲེལ་བ་གནང་ཐུབ།',
+      },
+      {
+        title: '༠༢། ཚོགས་མི་ངོ་མས་སྤེལ་བའི་གསལ་བསྒྲགས།',
+        body: 'གསལ་བསྒྲགས་སྤེལ་མཁན་ཚང་མས་ཐོ་འགོད་དང་བདེ་འཇགས་ཞིབ་བཤེར་བརྒྱུད་དགོས། ཁང་པ་དང་རླངས་འཁོར། ཉོ་ཚོང་བཅས་ལ་འདྲ་པར་དང་ལག་ཁྱེར་ཁ་པར་ཨང་གྲངས་ངེས་པར་དུ་འགོད་དགོས།',
+      },
+      {
+        title: '༠༣། སྐད་ཡིག་བདུན་དང་དངུལ་ལོར་བརྗེ་བསྒྱུར།',
+        body: 'རྒྱ་སྐད་དང་དབྱིན་སྐད། ཕ་རན་སི། སི་པེན། རྫོང་ཁ། བོད་སྐད། སུད་སི་འཇར་མན་བཅས་སྐད་ཡིག་བདུན་དང་དངུལ་ལོར་རང་འགུལ་གྱིས་བརྗེ་བསྒྱུར་བྱེད་ཐུབ།',
+      },
+    ],
+    recruitmentHeading: 'ལས་ཀའི་ས་མིག་གསལ་བསྒྲགས།',
+    recruitmentLead: 'གཤམ་གྱི་སྡེ་ཚན་ལས་དགོས་མཁོ་གདམ་སྟེ་ལས་བདག་ལ་ཐད་ཀར་གློག་འཕྲིན་གཏོང་བའམ་གསལ་བསྒྲགས་བརྒྱུད་སྤེལ་གནང་།',
+    lookingForJobLead: 'ལས་ཀ་འཚོལ་མཁན་རྣམས་ཀྱིས་འདིར་རང་ཉིད་ཀྱི་ལས་འཚོལ་གསལ་བསྒྲགས་སྤེལ་ནས་ལས་བདག་གིས་ཐད་ཀར་འབྲེལ་བ་གནང་ཐུབ།',
+    allCategories: 'སྡེ་ཚན་ཚང་མ།',
+    categories: {
+      babysitting: 'བྱིས་པ་ལྟ་སྐྱོང་།',
+      restaurant: 'ཟ་ཁང་ཞབས་ཞུ།',
+      construction: 'ཨར་ལས་འཛུགས་སྐྲུན།',
+      cleaning: 'གཙང་སྦྲའི་ལས་ཀ',
+      elderly_care: 'རྒན་གསོ་ལྟ་སྐྱོང་།',
+      companion: 'མཉམ་འགྲོ་རོགས་པ།',
+      looking_for_job: 'LOOKING FOR JOB',
+      apartment: 'སྡོད་ཁང་།',
+      villa: 'ཁྱིམ་ཚང་སྒེར་ཁང་།',
+      sedan: 'སི་ཌན་རླངས་འཁོར།',
+      suv: 'SUV རླངས་འཁོར།',
+      electronics: 'གློག་རྡུལ་ཡོ་བྱད།',
+      furniture: 'ཁྱིམ་ཆས།',
+      appliances: 'ཁྱིམ་སྤྱོད་འཕྲུལ་ཆས།',
+    },
+    rentalsHeading: 'ཁང་པ་དང་རླངས་འཁོར་གླ་གཏོང་།',
+    rentalsLead: 'ཞིབ་ཕྲ་བལྟ་བའི་སྐབས་སུ་བདག་པོའི་ལག་ཁྱེར་ཁ་པར་ཨང་གྲངས་དང་གློག་འཕྲིན་ཁ་བྱང་མཐོང་ཐུབ།',
+    houseTab: 'ཁང་པ་གླ་གཏོང་།',
+    carTab: 'རླངས་འཁོར་གླ་གཏོང་།',
+    salesHeading: 'ས་གནས་ཉོ་ཚོང་ཁྲོམ་ར།',
+    salesLead: 'ཐོ་འགོད་ཟིན་པའི་ཚོང་པས་སྤེལ་བའི་དངོས་པོ་ཁག་ལ་གཟིགས་ཏེ་ཁ་པར་དང་གློག་འཕྲིན་ཐོག་འབྲེལ་བ་གནང་།',
+    sendEmail: 'གློག་འཕྲིན་གཏོང་།',
+    emailOwner: 'བདག་པོར་གློག་འཕྲིན་གཏོང་།',
+    emailSeller: 'ཚོང་པར་གློག་འཕྲིན་གཏོང་།',
+    sharePost: 'བརྒྱུད་སྤེལ།',
+    linkCopied: 'སྦྲེལ་ཐག་བཤུས་ཟིན།',
+    viewDetails: 'ཞིབ་ཕྲ་བལྟ།',
+    ownerMobile: 'བདག་པོའི་ཁ་པར་ཨང་།',
+    sellerMobile: 'ཚོང་པའི་ཁ་པར་ཨང་།',
+    recruiterMobile: 'ལས་བདག་ཁ་པར་ཨང་།',
+    editPost: 'བཟོ་བཅོས།',
+    deletePost: 'བསུབ།',
+    confirmDelete: 'ཁྱེད་ཀྱིས་གསལ་བསྒྲགས་འདི་བསུབ་རྒྱུ་གཏན་འཁེལ་ཡིན་ནམ།',
+    noListings: 'ད་ལྟ་སྡེ་ཚན་འདིའི་ནང་གསལ་བསྒྲགས་གང་ཡང་མི་འདུག',
+    periodSuffix: { month: '/ཟླ་རེ།', day: '/ཉིན་རེ།', hour: '/ཆུ་ཚོད།', once: '' },
+    specsLabels: {
+      bedrooms: 'ཉལ་ཁང་།',
+      bathrooms: 'ཁྲུས་ཁང་།',
+      area: 'རྒྱ་ཁྱོན།',
+      furnished: 'ཁྱིམ་ཆས་ཡོད་མེད།',
+      yes: 'ཡོད།',
+      no: 'མེད།',
+      year: 'ལོ་རྟགས།',
+      transmission: 'གེར་བརྗེ་སྟངས།',
+      fuel: 'སྣུམ་རིགས།',
+      seats: 'རྐུབ་སྟེགས།',
+      condition: 'གནས་སྟངས།',
+      brand: 'ཚོང་རྟགས།',
+      location: 'ས་གནས།',
+      postedBy: 'སྤེལ་མཁན།',
+      postedAt: 'སྤེལ་དུས།',
+      restaurantName: 'ཟ་ཁང་གི་མིང་།',
+    },
+    contactModal: {
+      title: 'དོ་དམ་པར་འབྲེལ་བ་གནང་།',
+      subtitle: 'དྲི་བ་དང་གྲོས་འདེབས་སམ་མཉམ་ལས་འབྲེལ་བ་གནང་འདོད་ན། གཤམ་གྱི་རེའུ་མིག་འགེངས་རོགས།',
+      name: 'ཁྱེད་ཀྱི་མིང་།',
+      email: 'གློག་འཕྲིན་ཁ་བྱང་།',
+      phone: 'ཁ་པར་ཨང་གྲངས། (གདམ་ཁ)',
+      subject: 'བརྗོད་གཞི།',
+      message: 'འཕྲིན་ཡིག་ནང་དོན།',
+      submit: 'འཕྲིན་ཡིག་གཏོང་།',
+      sending: 'གཏོང་བཞིན་པ...',
+      success: 'ཁྱེད་ཀྱི་འཕྲིན་ཡིག་དོ་དམ་པའི་མདུན་དུ་བདེ་བླག་ངང་འབྱོར་ཟིན།',
+    },
+    authModal: {
+      title: 'ཐོ་འགོད་ / ནང་འཛུལ།',
+      subtitle: 'གཤམ་དུ་ཁྱེད་ཀྱི་གནས་ཚུལ་བཀང་ནས་ཐོ་འགོད་གནང་བའམ། Google ཐོག་ནས་ཐད་ཀར་ནང་འཛུལ་གནང་།',
+      registerTab: 'ཐོ་འགོད།',
+      loginTab: 'ནང་འཛུལ།',
+      email: 'གློག་འཕྲིན་ཁ་བྱང་།',
+      password: 'གསང་ཨང་། (ཉུང་མཐར་ཡིག་འབྲུ་ ༨)',
+      createAccountBtn: 'ཐོ་གསར་བཟོ།',
+      loginBtn: 'ནང་འཛུལ།',
+      orGoogle: 'ཡང་ན་ Google བརྒྱུད་ཐད་ཀར་འཛུལ།',
+      googleBtn: 'Google ཐོག་ནས་མུ་མཐུད།',
+      completeProfile: 'ཚོགས་མིའི་གནས་ཚུལ་ཆ་ཚང་འགེངས།',
+      displayName: 'མིང་ / ལས་ཁུངས་མིང་།',
+      phone: 'ལག་ཁྱེར་ཁ་པར་ཨང་གྲངས།',
+      accountType: 'ཐོ་ཁོངས་རིགས།',
+      seeker: 'ལས་ཀ་འཚོལ་མཁན།',
+      employer: 'ལས་བདག',
+      lister: 'ཁང་བདག་ / ཚོང་པ།',
+      saveProfile: 'ཐོ་འགོད་ལེགས་གྲུབ།',
+      signedInAs: 'ནང་འཛུལ་ཟིན་པའི་མིང་།',
+    },
+    listingModal: {
+      createTitle: 'གསལ་བསྒྲགས་གསར་པ་སྤེལ།',
+      editTitle: 'གསལ་བསྒྲགས་བཟོ་བཅོས།',
+      type: 'གསལ་བསྒྲགས་རིགས།',
+      typeJob: 'ལས་ཀའི་ས་མིག',
+      typeLookingForJob: 'Looking for Job (ལས་ཀ་འཚོལ་བཞིན་པ།)',
+      typeHouse: 'ཁང་པ་གླ་གཏོང་།',
+      typeCar: 'རླངས་འཁོར་གླ་གཏོང་།',
+      typeSale: 'ཉོ་ཚོང་དངོས་པོ།',
+      category: 'ནང་གསེས་སྡེ་ཚན།',
+      titleLabel: 'ཁ་བྱང་།',
+      jobTitleLabel: 'ལས་ཀའི་མཚན་གནས།',
+      locationLabel: 'གྲོང་ཁྱེར།',
+      priceEurLabel: 'རིན་གོང་ཚད་གཞི། (EUR — སྐད་ཡིག་ལྟར་རང་འགུལ་གྱིས་བརྗེ་བསྒྱུར་བྱེད།)',
+      emailLabel: 'འབྲེལ་གཏུགས་གློག་འཕྲིན།',
+      phoneLabel: 'ལག་ཁྱེར་ཁ་པར་ཨང་གྲངས།',
+      phoneRequiredNote: 'ཁང་པ་དང་རླངས་འཁོར། ཉོ་ཚོང་གསལ་བསྒྲགས་ལ་ཁ་པར་ཨང་ངེས་པར་དགོས།',
+      imagesLabel: 'འདྲ་པར་འཇུག་པ། (མང་ཤོས་ ༣)',
+      imagesRequiredNote: 'ཁང་པ་དང་རླངས་འཁོར། ཉོ་ཚོང་བཅས་ལ་ཉུང་མཐར་འདྲ་པར་ ༡ ངེས་པར་དགོས།',
+      uploadHint: 'འདྲ་པར་ཡིག་ཆ་འདེམས་པ། (རང་འགུལ་གྱིས་ཆེ་ཆུང་སྒྲིག་པ།)',
+      descriptionLabel: 'ཞིབ་ཕྲའི་འགྲེལ་བཤད།',
+      scheduleLabel: 'ལས་དུས་ / གན་རྒྱ།',
+      scheduleOptions: {
+        'Full-Time': 'དུས་ཚོད་ཆ་ཚང་།',
+        'Part-Time': 'ཕྱེད་དུས།',
+        Flexible: 'སྟབས་བསྟུན།',
+      },
+      submitCreate: 'སྐད་ཡིག་ ༧ ལ་བསྒྱུར་ཏེ་སྤེལ།',
+      submitSave: 'བཟོ་བཅོས་ཉར་ཚགས།',
+      translating: 'སྐད་ཡིག་བསྒྱུར་ནས་སྤེལ་བཞིན་པ...',
+    },
+    specValues: {
+      Automatic: 'རང་འགུལ།',
+      Manual: 'ལག་འགུལ།',
+      Electric: 'གློག་ཤུགས།',
+      Hybrid: 'མཉམ་བསྲེས་འཕྲུལ་སྣུམ།',
+      Petrol: 'པེ་ཊོལ།',
+      Diesel: 'ཌི་ཟལ།',
+      'Like New': 'གསར་པ་འདྲ་བ།',
+      Excellent: 'ཧ་ཅང་ལེགས་པོ།',
+      Good: 'ལེགས་པོ།',
+    },
+    cancel: 'ཕྱིར་འཐེན།',
+    ok: 'འགྲིག',
+    captchaLabel: 'བདེ་འཇགས་རྩིས་བཤེར། (CAPTCHA)',
+    captchaPlaceholder: 'ལན།',
+    chatbotTitle: 'JobSQUAD དྲ་ཐོག་རོགས་རམ།',
+    chatbotPlaceholder: 'ལས་ཀ་དང་ཁང་གླ། ཉོ་ཚོང་སྐོར་དྲིས་གནང་...',
+    chatbotSend: 'གཏོང་།',
+    upToTop: 'སྟེང་དུ་ལོག',
+    footerTagline: 'ཡིད་རྟོན་ཅན་གྱི་སྐད་ཡིག་སྣ་མང་ལས་ཀ་བསྡུ་ལེན་དང་ཁང་གླ། ས་གནས་ཚོང་ལས་སྟེགས་བུ།',
+    footerContactHeading: 'ཐད་ཀར་འབྲེལ་གཏུགས།',
+    footerSocialHeading: 'སྤྱི་ཚོགས་དྲ་ལམ།',
+    footerRights: 'ཁེ་དབང་ཆ་ཚང་བདག་གིར་བཟུང་ཡོད།',
+    search: {
+      placeholder: 'ལས་ཀ་དང་ཁང་གླ། རླངས་འཁོར། དངོས་པོའམ་ས་གནས་ལྟར་འཚོལ...',
+      button: 'འཚོལ།',
+      clear: 'གཙང་བཟོ།',
+      resultsFor: 'འཚོལ་ཞིབ་འབྲས་བུ།',
+      matchesCount: 'མཐུན་པ།',
+      noResults: 'མཐུན་པའི་ལས་ཀ་དང་ཁང་གླ། དངོས་པོ་གང་ཡང་མ་རྙེད།',
+      typeLabels: { job: 'ལས་ཀ', house: 'ཁང་པ།', car: 'རླངས་འཁོར།', sale: 'ཉོ་ཚོང་།' },
+    },
+    legal: {
+      termsLink: 'ཞབས་ཞུའི་ཆ་རྐྱེན།',
+      privacyLink: 'སྒེར་དོན་སྲིད་བྱུས། (GDPR)',
+      checkboxPrefix: 'ངས་',
+      checkboxAnd: 'དང་',
+      checkboxRequiredError: 'ཐོ་ཁོངས་གསར་བཟོ་བྱེད་པར་ཞབས་ཞུའི་ཆ་རྐྱེན་དང་སྒེར་དོན་སྲིད་བྱུས་ངེས་པར་དུ་མོས་མཐུན་རྟགས་རྒྱག་དགོས།',
+      closeBtn: 'སྒོ་བརྒྱབ།',
+    },
+    moderation: {
+      flagBtn: 'རྟགས་རྒྱག',
+      unflagBtn: 'རྟགས་སེལ།',
+      flaggedBadge: 'དོ་དམ་པས་རྟགས་བརྒྱབ་པ།',
+      flagModalTitle: 'གསལ་བསྒྲགས་ཞིབ་བཤེར་ — རྟགས་རྒྱག་པའམ་བསུབ་པ།',
+      flagModalSubtitle: 'གལ་ཏེ་གསལ་བསྒྲགས་འདི་འབྲེལ་མེད་དམ་གནོད་སྐྱོན། ནོར་འཁྲུལ་ཅན་ཡིན་ན་རྟགས་རྒྱག་པའམ་བསུབ་ཐུབ།',
+      reasonLabel: 'རྒྱུ་མཚན་འདེམས་པ།',
+      customReasonLabel: 'ཞིབ་ཕྲའི་གསལ་བཤད། (གདམ་ཁ)',
+      customReasonPlaceholder: 'གསལ་བསྒྲགས་འདིར་རྟགས་རྒྱག་དགོས་པའི་རྒྱུ་མཚན་འབྲི་རོགས...',
+      confirmFlagBtn: 'གསལ་བསྒྲགས་ལ་རྟགས་རྒྱག',
+      confirmUnflagBtn: 'རྟགས་ཕྱིར་འཐེན།',
+      deleteInsteadBtn: 'གསལ་བསྒྲགས་བསུབ།',
+      reasonRequiredError: 'རྒྱུ་མཚན་ཞིག་འདེམས་པའམ་འབྲི་གནང་།',
+      reasons: {
+        irrelevant: 'འབྲེལ་མེད་ནང་དོན།',
+        harmful: 'གནོད་སྐྱོན་ནམ་ཉེན་ཁ་ཅན།',
+        inaccurate: 'བདེན་མེད་དམ་མགོ་སྐོར།',
+        spam: 'གད་སྙིགས་ཁྱབ་བསྒྲགས།',
+      },
+    },
+    adminUsers: {
+      sectionTitle: 'སྤྱོད་མཁན་གཞི་གྲངས་དོ་དམ།',
+      sectionSubtitle: 'ཐོ་འགོད་ཟིན་པའི་སྤྱོད་མཁན་གྱི་གནས་ཚུལ་ལྟ་བ་དང་། རྩོམ་སྒྲིག གསར་བསྒྱུར། བསུབ་པ་བཅས་བྱེད་ཐུབ།',
+      totalUsers: 'སྤྱོད་མཁན་ཁྱོན།',
+      searchPlaceholder: 'མིང་དང་གློག་འཕྲིན། ཁ་པར། ལས་འགན་བཅས་འཚོལ་བ...',
+      refreshBtn: 'གསར་སྒྱུར།',
+      loading: 'སྤྱོད་མཁན་གྱི་གཞི་གྲངས་འདྲེན་བཞིན་པ...',
+      emptyState: 'འཚོལ་བཤེར་དང་མཐུན་པའི་སྤྱོད་མཁན་མ་རྙེད།',
+      backToListings: 'གསལ་བསྒྲགས་ཚང་མར་ལོག',
+      colName: 'མིང་།',
+      colEmail: 'གློག་འཕྲིན།',
+      colPhone: 'ཁ་པར།',
+      colRole: 'ཐོབ་ཐང་།',
+      colSource: 'གཞི་གྲངས།',
+      colTerms: 'ཆ་རྐྱེན།',
+      colRegistered: 'ཐོ་འགོད་དུས་ཚོད།',
+      colActions: 'བྱ་བ།',
+      sourceFirestore: 'Firestore DB',
+      sourceServer: 'ཐོ་ཁོངས་གཞི་གྲངས།',
+      termsAccepted: 'མོས་མཐུན་བྱས།',
+      termsPending: 'མོས་མཐུན་མེད།',
+      adminBadge: 'དོ་དམ་པ།',
+      editBtn: 'བཟོ་བཅོས།',
+      deleteBtn: 'བསུབ།',
+      editModalTitle: 'སྤྱོད་མཁན་གྱི་གནས་ཚུལ་བཟོ་བཅོས།',
+      editModalSubtitle: 'མིང་དང་གློག་འཕྲིན། ཁ་པར་ཨང་གྲངས། ཐོབ་ཐང་བཅས་གསར་བསྒྱུར་བྱེད།',
+      newPasswordLabel: 'གསང་གྲངས་གསར་བཟོ་ (གདམ་ཁ། ཉུང་མཐར་ཡིག་འབྲུ་ ༨)',
+      newPasswordPlaceholder: 'སྔོན་མའི་གསང་གྲངས་རང་འཇགས་འཇོག་ན་སྟོང་པར་བཞག',
+      saveUserBtn: 'གསར་བསྒྱུར་ཉར་ཚགས།',
+      deleteModalTitle: 'སྤྱོད་མཁན་གྱི་ཐོ་ཁོངས་བསུབ།',
+      deleteModalConfirm: 'ཁྱེད་ཀྱིས་སྤྱོད་མཁན་འདི་གཞི་གྲངས་མཛོད་ནས་གཏན་དུ་བསུབ་རྒྱུ་ཡིན་པ་ངེས་གཏན་ཡིན་ནམ།',
+      firestoreNote: 'Firestore གཞི་གྲངས་ནང་གི་སྤྱོད་མཁན་དོ་དམ་བྱེད་པར་དོ་དམ་པའི་ Google ཐོ་ཁོངས་ནས་ནང་འཛུལ་གནང་།',
+      updateSuccess: 'སྤྱོད་མཁན་གྱི་གནས་ཚུལ་གསར་བསྒྱུར་ཟིན།',
+      deleteSuccess: 'སྤྱོད་མཁན་གཞི་གྲངས་ནས་བསུབ་ཟིན།',
+    },
   },
 };

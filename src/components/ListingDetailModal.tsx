@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, CheckCircle2, Copy, ExternalLink, Mail, MapPin, Phone, Send, Share2, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Copy, ExternalLink, Flag, Mail, MapPin, Phone, Send, Share2, Trash2, X } from 'lucide-react';
 import { formatLocalizedPrice, formatPostDateTime, UI_TEXT } from '../i18n/translations.ts';
 import { fetchCaptchaChallenge, sendListingInquiry } from '../lib/api.ts';
 import type { Listing, SupportedLang, UserProfile } from '../types/index.ts';
@@ -10,6 +10,9 @@ interface ListingDetailModalProps {
   listing: Listing | null;
   lang: SupportedLang;
   currentUser?: UserProfile | null;
+  isAdmin?: boolean;
+  onFlagListing?: (listing: Listing) => void;
+  onDeleteListing?: (listing: Listing) => void;
   onClose: () => void;
 }
 
@@ -17,6 +20,9 @@ export function ListingDetailModal({
   listing,
   lang,
   currentUser,
+  isAdmin = false,
+  onFlagListing,
+  onDeleteListing,
   onClose,
 }: ListingDetailModalProps) {
   const t = UI_TEXT[lang];
@@ -233,6 +239,16 @@ export function ListingDetailModal({
         </div>
 
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+          {listing.flagged && (
+            <div className="rounded-xl border border-amber-500/50 bg-amber-950/45 px-4 py-3 text-xs sm:text-sm text-amber-100 flex items-start gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-amber-300">{t.moderation.flaggedBadge}</p>
+                {listing.flagReason && <p className="text-amber-100/90">{listing.flagReason}</p>}
+              </div>
+            </div>
+          )}
+
           {listing.images.length > 0 && (
             <div className="space-y-3">
               <div className="rounded-xl overflow-hidden border border-slate-800">
@@ -328,13 +344,17 @@ export function ListingDetailModal({
               <div>
                 <p className="text-slate-400">{t.specsLabels.transmission}</p>
                 <p className="font-semibold text-slate-100 mt-0.5">
-                  {listing.specs?.transmission || '—'}
+                  {listing.specs?.transmission
+                    ? t.specValues[listing.specs.transmission] || listing.specs.transmission
+                    : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-slate-400">{t.specsLabels.fuel}</p>
                 <p className="font-semibold text-slate-100 mt-0.5">
-                  {listing.specs?.fuel || '—'}
+                  {listing.specs?.fuel
+                    ? t.specValues[listing.specs.fuel] || listing.specs.fuel
+                    : '—'}
                 </p>
               </div>
               <div>
@@ -357,7 +377,9 @@ export function ListingDetailModal({
               <div>
                 <p className="text-slate-400">{t.specsLabels.condition}</p>
                 <p className="font-semibold text-slate-100 mt-0.5">
-                  {listing.specs?.condition || '—'}
+                  {listing.specs?.condition
+                    ? t.specValues[listing.specs.condition] || listing.specs.condition
+                    : '—'}
                 </p>
               </div>
             </div>
@@ -412,6 +434,28 @@ export function ListingDetailModal({
                   </>
                 )}
               </button>
+
+              {isAdmin && onFlagListing && (
+                <button
+                  type="button"
+                  onClick={() => onFlagListing(listing)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-amber-500/45 text-amber-300 text-xs font-semibold hover:bg-amber-500/15 transition-colors cursor-pointer"
+                >
+                  <Flag className="w-4 h-4" />
+                  <span>{listing.flagged ? t.moderation.unflagBtn : t.moderation.flagBtn}</span>
+                </button>
+              )}
+
+              {isAdmin && onDeleteListing && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteListing(listing)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg border border-rose-500/40 text-rose-300 text-xs font-semibold hover:bg-rose-500/15 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{t.deletePost}</span>
+                </button>
+              )}
             </div>
 
             {composerOpen && (
@@ -453,7 +497,7 @@ export function ListingDetailModal({
                       }}
                       className="px-5 py-2 rounded-lg bg-[#D9A438] text-[#071121] font-semibold text-xs hover:bg-[#E5B34B] transition-colors cursor-pointer"
                     >
-                      OK
+                      {t.ok}
                     </button>
                   </div>
                 ) : (

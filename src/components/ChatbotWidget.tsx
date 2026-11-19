@@ -35,6 +35,8 @@ const INITIAL_GREETING: Record<SupportedLang, (s: ChatbotWidgetProps['stats']) =
     `བཀྲ་ཤིས་བདེ་ལེགས། JobSQUAD གྲོགས་རམ་ནང་བྱོན་པ་ལེགས་སོ། ད་ལྟོ་ གཡོག་ ${s.jobs} ། ཁྱིམ་ ${s.houses} ། སྣུམ་འཁོར་ ${s.cars} ། ཉོ་ཚོང་ ${s.sales} ཡོད། ག་ཅི་གྲོགས་རམ་དགོཔ་སྨོ?`,
   gsw: (s) =>
     `Grüezi bi de JobSQUAD Hilf! Aktuell online: ${s.jobs} Stelle, ${s.houses} Hüser, ${s.cars} Autos und ${s.sales} Artikel. Wie cha ich Ihne hälfe?`,
+  bo: (s) =>
+    `བཀྲ་ཤིས་བདེ་ལེགས། JobSQUAD དྲ་ཐོག་རོགས་རམ་ནང་ཕེབས་པར་དགའ་བསུ་ཞུ། ད་ལྟ་ལས་ཀའི་ས་མིག་ ${s.jobs} དང་། ཁང་པ་གླ་གཏོང་ ${s.houses} ། རླངས་འཁོར་གླ་གཏོང་ ${s.cars} ། ཉོ་ཚོང་དངོས་པོ་ ${s.sales} ཡོད། ཁྱེད་ལ་རོགས་རམ་གང་དགོས་སམ།`,
 };
 
 export function ChatbotWidget({ lang, stats }: ChatbotWidgetProps) {

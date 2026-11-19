@@ -1,31 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { AuthModal } from './components/AuthModal.tsx';
 import { AboutSection } from './components/AboutSection.tsx';
+import { AdminUsersPanel } from './components/AdminUsersPanel.tsx';
 import { ChatbotWidget } from './components/ChatbotWidget.tsx';
 import { ContactModal } from './components/ContactModal.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
+import { FlagListingModal } from './components/FlagListingModal.tsx';
 import { Footer } from './components/Footer.tsx';
 import { Header } from './components/Header.tsx';
 import { HeroSection } from './components/HeroSection.tsx';
+import { LegalModal } from './components/LegalModal.tsx';
 import { ListingDetailModal } from './components/ListingDetailModal.tsx';
 import { ListingFormModal } from './components/ListingFormModal.tsx';
 import { ListingsBoard } from './components/ListingsBoard.tsx';
 import { SEED_LISTINGS } from './data/seedListings.ts';
 import { UI_TEXT } from './i18n/translations.ts';
+import { matchesListingSearch } from './lib/search.ts';
 import {
   deleteServerListingById,
   ensureCsrfToken,
   fetchCurrentAuthUser,
   fetchServerListings,
+  flagServerListing,
   logoutServerSession,
   syncFirebaseSession,
+  translateListingViaServer,
 } from './lib/api.ts';
 import {
   auth,
   checkIsAdmin,
   deleteListingDoc,
   fetchFirestoreListingsOnce,
+  flagListingDoc,
   getUserProfile,
   signOutUser,
   subscribeListings,
@@ -46,14 +53,18 @@ function JobSquadShell() {
   const [rentalsSubtab, setRentalsSubtab] = useState<'house' | 'car'>('house');
   const [selectedJobCat, setSelectedJobCat] = useState<string>('all');
   const [activeScope, setActiveScope] = useState<'all' | 'mine' | 'admin'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [contactOpen, setContactOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formInitialMode, setFormInitialMode] = useState<'job' | 'looking_for_job' | null>(null);
   const [pendingPostMode, setPendingPostMode] = useState<'job' | 'looking_for_job' | null>(null);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
+  const [pendingFlag, setPendingFlag] = useState<Listing | null>(null);
+  const [flagLoading, setFlagLoading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Listing | null>(null);
 
   const t = UI_TEXT[lang];
@@ -183,6 +194,44 @@ function JobSquadShell() {
   }, [firestoreListings, serverListings, deletedIds]);
 
   const visibleListings = allListings;
+  const attemptedTranslateRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const missing = allListings.filter((item) => {
+      if (item.isSeeded) return false;
+      const attemptKey = `${item.id}:${lang}`;
+      if (attemptedTranslateRef.current.has(attemptKey)) return false;
+      return !item.translations?.[lang]?.title;
+    });
+
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    missing.slice(0, 6).forEach((item) => {
+      attemptedTranslateRef.current.add(`${item.id}:${lang}`);
+      void translateListingViaServer({
+        title: item.title,
+        description: item.description,
+        location: item.location,
+        specsSummary: item.translations?.en?.specsSummary || item.specs?.employmentType || '',
+      })
+        .then(({ translations, aiTranslated }) => {
+          if (cancelled || !aiTranslated) return;
+          setServerListings((prev) => {
+            const exists = prev.some((p) => p.id === item.id);
+            if (exists) {
+              return prev.map((p) => (p.id === item.id ? { ...p, translations } : p));
+            }
+            return [{ ...item, translations }, ...prev];
+          });
+        })
+        .catch(() => {});
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allListings, lang]);
 
   const stats = useMemo(() => {
     const categories: Record<string, number> = {};
@@ -241,6 +290,63 @@ function JobSquadShell() {
     });
   };
 
+  const handleSaveFlag = async (target: Listing, flagged: boolean, flagReason: string) => {
+    if (!isAdmin) return;
+    setFlagLoading(true);
+    try {
+      const flaggedBy = userProfile?.email || firebaseUser?.email || 'admin';
+      const isFirestoreDoc = firestoreListings.some((f) => f.id === target.id);
+      let updatedListing: Listing = {
+        ...target,
+        flagged,
+        flagReason: flagged ? flagReason : '',
+        flaggedAt: flagged ? Date.now() : undefined,
+        flaggedBy: flagged ? flaggedBy : undefined,
+        updatedAt: Date.now(),
+        isSeeded: false,
+      };
+
+      if (firebaseUser && isFirestoreDoc) {
+        try {
+          await flagListingDoc(target.id, {
+            flagged,
+            flagReason,
+            flaggedBy,
+          });
+        } catch {
+          // Continue with server persistence fallback
+        }
+      }
+
+      try {
+        updatedListing = await flagServerListing(target.id, {
+          flagged,
+          flagReason,
+          listingSnapshot: target,
+        });
+      } catch (err) {
+        if (!firebaseUser || !isFirestoreDoc) {
+          throw err;
+        }
+      }
+
+      setFirestoreListings((prev) =>
+        prev.map((item) => (item.id === target.id ? { ...item, ...updatedListing } : item))
+      );
+      setServerListings((prev) => {
+        const exists = prev.some((item) => item.id === target.id);
+        if (exists) {
+          return prev.map((item) => (item.id === target.id ? updatedListing : item));
+        }
+        return [updatedListing, ...prev];
+      });
+      setDetailListing((prev) => (prev && prev.id === target.id ? updatedListing : prev));
+      setPendingFlag(null);
+    } finally {
+      setFlagLoading(false);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
     const target = pendingDelete;
@@ -263,6 +369,7 @@ function JobSquadShell() {
       setFirestoreListings((prev) => prev.filter((item) => item.id !== target.id));
       setDeletedIds((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
       setServerListings((prev) => prev.filter((item) => item.id !== target.id));
+      setDetailListing((prev) => (prev && prev.id === target.id ? null : prev));
     } finally {
       setPendingDelete(null);
     }
@@ -274,6 +381,58 @@ function JobSquadShell() {
     setIsAdmin(false);
     setActiveScope('all');
     await refreshServerListings();
+  };
+
+  const scrollToElementWithHeaderOffset = (elId: string) => {
+    window.setTimeout(() => {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      const headerEl = document.querySelector('header');
+      const headerHeight = headerEl ? Math.round(headerEl.getBoundingClientRect().height) : 140;
+      const top = el.getBoundingClientRect().top + window.scrollY - headerHeight - 24;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }, 60);
+  };
+
+  const handleSearchChange = (q: string) => {
+    setSearchQuery(q);
+    if (q.trim()) {
+      setSelectedJobCat('all');
+      setActiveScope('all');
+    }
+  };
+
+  const handleSubmitSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setActiveScope('all');
+    setSelectedJobCat('all');
+    const matched = allListings.filter((item) => matchesListingSearch(item, q, lang));
+    if (matched.some((m) => m.type === 'job')) {
+      scrollToElementWithHeaderOffset('recruitment');
+    } else if (matched.some((m) => m.type === 'house')) {
+      setRentalsSubtab('house');
+      scrollToElementWithHeaderOffset('rentals');
+    } else if (matched.some((m) => m.type === 'car')) {
+      setRentalsSubtab('car');
+      scrollToElementWithHeaderOffset('rentals');
+    } else if (matched.some((m) => m.type === 'sale')) {
+      scrollToElementWithHeaderOffset('sales');
+    } else {
+      scrollToElementWithHeaderOffset('recruitment');
+    }
+  };
+
+  const handleSelectSearchResult = (item: Listing) => {
+    setActiveScope('all');
+    if (item.type === 'job') {
+      setSelectedJobCat(item.category === 'looking_for_job' ? 'looking_for_job' : 'all');
+    } else if (item.type === 'house') {
+      setRentalsSubtab('house');
+    } else if (item.type === 'car') {
+      setRentalsSubtab('car');
+    }
+    scrollToElementWithHeaderOffset(`post-${item.id}`);
   };
 
   return (
@@ -294,6 +453,11 @@ function JobSquadShell() {
         user={userProfile}
         isAdmin={isAdmin}
         onSignOut={handleSignOut}
+        listings={visibleListings}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onSubmitSearch={handleSubmitSearch}
+        onSelectSearchResult={handleSelectSearchResult}
       />
 
       <main className="flex-1">
@@ -308,9 +472,22 @@ function JobSquadShell() {
 
         <AboutSection lang={lang} />
 
+        {isAdmin && activeScope === 'admin' && (
+          <AdminUsersPanel
+            lang={lang}
+            isAdmin={isAdmin}
+            firebaseUser={firebaseUser}
+            currentUser={userProfile}
+            onCurrentUserUpdated={(updated) => setUserProfile(updated)}
+            onBackToAll={() => setActiveScope('all')}
+          />
+        )}
+
         <ListingsBoard
           lang={lang}
           listings={visibleListings}
+          searchQuery={searchQuery}
+          onClearSearch={() => setSearchQuery('')}
           selectedJobCat={selectedJobCat}
           onChangeJobCat={setSelectedJobCat}
           onOpenPostLookingForJob={() => handleOpenPost('looking_for_job')}
@@ -322,11 +499,16 @@ function JobSquadShell() {
           onClearScope={() => setActiveScope('all')}
           onViewDetails={(item) => setDetailListing(item)}
           onEditListing={handleEditListing}
+          onFlagListing={(item) => setPendingFlag(item)}
           onDeleteListing={(item) => setPendingDelete(item)}
         />
       </main>
 
-      <Footer lang={lang} onOpenContact={() => setContactOpen(true)} />
+      <Footer
+        lang={lang}
+        onOpenContact={() => setContactOpen(true)}
+        onOpenLegal={(tab) => setLegalTab(tab)}
+      />
 
       <ChatbotWidget lang={lang} stats={stats} />
 
@@ -353,10 +535,18 @@ function JobSquadShell() {
             setFormOpen(true);
           }
         }}
+        onOpenLegal={(tab) => setLegalTab(tab)}
         onClose={() => {
           setPendingPostMode(null);
           setAuthOpen(false);
         }}
+      />
+
+      <LegalModal
+        open={legalTab !== null}
+        initialTab={legalTab || 'terms'}
+        lang={lang}
+        onClose={() => setLegalTab(null)}
       />
 
       <ListingFormModal
@@ -377,7 +567,26 @@ function JobSquadShell() {
         listing={detailListing}
         lang={lang}
         currentUser={userProfile}
+        isAdmin={isAdmin}
+        onFlagListing={(item) => setPendingFlag(item)}
+        onDeleteListing={(item) => {
+          setDetailListing(null);
+          setPendingDelete(item);
+        }}
         onClose={() => setDetailListing(null)}
+      />
+
+      <FlagListingModal
+        listing={pendingFlag}
+        lang={lang}
+        loading={flagLoading}
+        onConfirmFlag={(item, reason) => handleSaveFlag(item, true, reason)}
+        onUnflag={(item) => handleSaveFlag(item, false, '')}
+        onDelete={(item) => {
+          setPendingFlag(null);
+          setPendingDelete(item);
+        }}
+        onClose={() => setPendingFlag(null)}
       />
 
       {/* Delete Confirmation Dialog */}
@@ -396,7 +605,7 @@ function JobSquadShell() {
                 onClick={() => setPendingDelete(null)}
                 className="px-4 py-2 rounded-lg border border-slate-700 text-xs font-medium text-slate-300 hover:text-white cursor-pointer"
               >
-                Cancel
+                {t.cancel}
               </button>
               <button
                 type="button"

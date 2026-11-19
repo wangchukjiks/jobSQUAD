@@ -62,6 +62,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: 'Vitry-sur-Seine, Paris',
         specsSummary: 'Teilzyt · Mä–Fr',
       },
+      bo: {
+        title: 'སློབ་གྲྭའི་རྗེས་ཀྱི་སྐད་གཉིས་བྱིས་པ་ལྟ་སྐྱོང་བ། (བྱིས་པ་ ༢)',
+        description:
+          'Vitry-sur-Seine དུ་བྱིས་པ་གཉིས་ (ལོ་ ༥ དང་ ༨) ལ་བྱམས་བརྩེ་དང་དུས་ཚོད་དམ་འཛིན་ཅན་གྱི་བྱིས་སྐྱོང་བ་ཞིག་དགོས། གཟའ་ཟླ་བ་ནས་པ་སངས་བར་ཕྱི་དྲོ་ཆུ་ཚོད་ ༡༦:༣༠ ནས་ ༡༩:༣༠ བར་སློབ་གྲྭ་ནས་བསུ་བ་དང་། ཞོར་ཟས་གྲ་སྒྲིག ནང་སྦྱོང་རོགས་རམ་བཅས་བྱེད་དགོས།',
+        location: 'Vitry-sur-Seine ཕ་རན་སི། (པེ་རི་སི།)',
+        specsSummary: 'ཕྱེད་དུས། · ཟླ་བ་ནས་པ་སངས།',
+      },
     },
   },
   {
@@ -124,6 +131,13 @@ export const SEED_LISTINGS: Listing[] = [
           'Lebändigs Quartier-Bistro suecht en erfahrene Sous-Chef für saisonali Chuchi, Grillposten und HACCP-Standards. Verpflegig und zwei zämehängendi Freitäg.',
         location: 'Paris 13e / Ivry',
         specsSummary: 'Vollzyt · 100%',
+      },
+      bo: {
+        title: 'དེང་རབས་ཡོ་རོབ་ཟ་ཁང་གི་མ་ཆེན་གཞོན་པ་དང་ཟས་སྦྱོར་བ།',
+        description:
+          'བྲེལ་བ་ཆེ་བའི་གྲོང་ཁྱེར་ཟ་ཁང་དུ་དུས་ཚིགས་ལྟར་ཟས་རིགས་གྲ་སྒྲིག་དང་བསྲེག་ཟས་སྡེ་ཚན། ཟས་རིགས་གཙང་སྦྲའི་ཚད་གཞི་བཅས་ལ་ཉམས་མྱོང་ཡོད་པའི་མ་ཆེན་གཞོན་པའམ་མ་ཆེན་ཞིག་དགོས། ཁ་ལག་རིན་མེད་དང་བདུན་རེར་ངལ་གསོ་ཉིན་གཉིས་བསྟུད་མར་ཡོད།',
+        location: 'པེ་རི་སི་ཁུལ་ ༡༣ / Ivry',
+        specsSummary: 'དུས་ཚོད་ཆ་ཚང་། · ཟས་བཅས།',
       },
     },
   },
@@ -188,6 +202,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: 'Créteil & Val-de-Marne',
         specsSummary: 'Vollzyt · Gschäftsfahrzüg',
       },
+      bo: {
+        title: 'ཨར་ལས་གློག་ལས་པ་དང་ནང་ཁང་ཉམས་གསོ་ཆེད་ལས་པ།',
+        description:
+          'Île-de-France ས་ཁུལ་གྱི་སྡོད་ཁང་ཉམས་གསོ་བཟོ་ཚོང་ཁང་ནང་ལག་ཁྱེར་ཡོད་པའི་གློག་ལས་པ་དང་ནང་ཁང་ཉམས་གསོའི་ལག་རྩལ་པ་བསྡུ་བཞིན་ཡོད། བདེ་འཇགས་ཡོ་ཆས་དང་ལས་ཁུངས་རླངས་འཁོར། ལས་འཕར་གླ་ཆ་བཅས་མཁོ་སྤྲོད་བྱེད།',
+        location: 'Créteil དང་ Val-de-Marne',
+        specsSummary: 'དུས་ཚོད་ཆ་ཚང་། · རླངས་འཁོར་བཅས།',
+      },
     },
   },
   {
@@ -250,6 +271,13 @@ export const SEED_LISTINGS: Listing[] = [
           'Zuverlässigi Reinigungsfachchraft für am Morge i Büros und Usstellige gsuecht. Öko-Reinigungsmittel vor Ort, flexibli 25–35 Stunde pro Wuche.',
         location: 'Vitry-sur-Seine & Choisy-le-Roi',
         specsSummary: 'Flexibel · 60–80%',
+      },
+      bo: {
+        title: 'ལས་ཁུངས་དང་འགྲེམས་སྟོན་ཁང་གཙང་སྦྲ་དོ་དམ་པ།',
+        description:
+          'ཞོགས་པའི་ལས་ཁུངས་ཁག་དང་འགྲེམས་སྟོན་ཁང་གི་གཙང་སྦྲ་བྱེད་མཁན་བློ་གཏད་ཅན་དགོས། ཁོར་ཡུག་ལ་གནོད་མེད་གཙང་སྦྲའི་ཡོ་ཆས་ལས་ཡུལ་དུ་མཁོ་སྤྲོད་བྱེད་ཅིང་། བདུན་རེར་ཆུ་ཚོད་ ༢༥–༣༥ བར་སྟབས་བསྟུན་ལས་དུས་ཡོད།',
+        location: 'Vitry-sur-Seine དང་ Choisy-le-Roi',
+        specsSummary: 'སྟབས་བསྟུན། · བདུན་རེར་ཆུ་ཚོད་ ༢༥–༣༥',
       },
     },
   },
@@ -314,6 +342,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: 'Villejuif, Grossruum Paris',
         specsSummary: 'Vollzyt · Tagdienst',
       },
+      bo: {
+        title: 'རྒན་གསོ་ལྟ་སྐྱོང་ལག་ཁྱེར་ཅན་གྱི་ལས་རོགས། (ཉིན་མོའི་ལས་རེས།)',
+        description:
+          'རྒན་རྒོན་རྣམས་ལ་ཞོགས་པའི་གཙང་སྦྲ་དང་ཞལ་ལག་གྲ་སྒྲིག སྨན་འཐུང་དུས་དྲན་སྐུལ། འཆམ་འཆམ་ཕེབས་རོགས་བཅས་བྱེད་མཁན་བྱམས་བརྩེ་ལྡན་པའི་ལྟ་སྐྱོང་བ་དགོས། འགྲིམ་འགྲུལ་བྱང་བུའི་རིན་པ་ཕྱིར་སྤྲོད་ཡོད།',
+        location: 'Villejuif པེ་རི་སི་ཁུལ།',
+        specsSummary: 'དུས་ཚོད་ཆ་ཚང་། · ཉིན་མོ།',
+      },
     },
   },
   {
@@ -376,6 +411,13 @@ export const SEED_LISTINGS: Listing[] = [
           'Warmherzige Begleiter gsuecht für Arzttermin, kulturelli Usflüg, Iichäuf und gmeinsami Kafi-Pouse mit ältere Mänsche.',
         location: 'Gentilly / Arcueil',
         specsSummary: 'Teilzyt · Flexibel',
+      },
+      bo: {
+        title: 'མཉམ་འགྲོ་རོགས་པ་དང་སྨན་ཁང་དུས་བཅད་སྐྱེལ་མཁན།',
+        description:
+          'རྒན་རྒོན་དང་ནད་ལས་དྲག་སྐྱེད་བྱུང་བཞིན་པ་རྣམས་སྨན་ཁང་དུ་དུས་བཅད་བརྟག་དཔྱད་དང་རིག་གཞུང་འགྲེམས་སྟོན། ཚོང་རའི་ཉོ་ཆ། ཕྱི་དྲོའི་ཇ་འཐུང་བཅས་སུ་མཉམ་སྐྱོད་གླེང་མོལ་བྱེད་མཁན་སེམས་བཟང་རོགས་པ་དགོས།',
+        location: 'Gentilly / Arcueil',
+        specsSummary: 'ཕྱེད་དུས། · སྟབས་བསྟུན།',
       },
     },
   },
@@ -447,6 +489,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: '14 Rue Pasteur, Vitry-sur-Seine, 94400',
         specsSummary: '2 Schlafzimmer · 78 m² · Möbliert',
       },
+      bo: {
+        title: 'ཉི་འོད་དྲོ་བའི་ཉལ་ཁང་ ༢ ཅན་གྱི་པེ་རི་སིའི་སྡོད་ཁང་ཁྱམས་ར་ཅན།',
+        description:
+          'Vitry-sur-Seine ཡི་ Tram T9 ས་ཚིགས་ནས་སྐར་མ་ ༤ ཡི་སར་ཡོད་པའི་རྒྱ་ཁྱོན་ ༧༨ m² ཅན་གྱི་ཁྱིམ་ཆས་ཆ་ཚང་ཡོད་པའི་སྡོད་ཁང་། ཤིང་གི་ཐང་གཅལ་དང་ཕ་རན་སིའི་སྒེའུ་ཁུང་ཆེན་པོ། དེང་རབས་ཐབ་ཚང་། མྱུར་ཚད་མཐོ་བའི་དྲ་རྒྱ་བཅས་ཡོད།',
+        location: '14 Rue Pasteur, Vitry-sur-Seine, 94400',
+        specsSummary: 'ཉལ་ཁང་ ༢ · ཁྲུས་ཁང་ ༡ · ༧༨ m² · ཁྱིམ་ཆས་བཅས།',
+      },
     },
   },
   {
@@ -515,6 +564,13 @@ export const SEED_LISTINGS: Listing[] = [
           '165 m² Steihus mit pflegtem Garte, Privatgarage, 4 Schlafzimmer, 3 Bäder und Wärmepumpi-Heizig. Ideal für Familie.',
         location: 'Antony / Parc de Sceaux',
         specsSummary: '4 Schlafzimmer · 165 m² · Garte',
+      },
+      bo: {
+        title: 'རྡོ་བཟོས་ཉལ་ཁང་ ༤ དང་ལྡུམ་ར་ཅན་གྱི་ཁྱིམ་ཚང་སྒེར་ཁང་།',
+        description:
+          'རྒྱ་ཁྱོན་ ༡༦༥ m² ཅན་གྱི་རྡོ་ཁང་རྒྱ་ཆེན་འདིར་མཛེས་པའི་ལྡུམ་ར་དང་སྒེར་གྱི་རླངས་འཁོར་འཇོག་ཁང་། ཉལ་ཁང་ ༤། ཁྲུས་ཁང་ ༣། དྲོད་སྤྲོད་མ་ལག་བཅས་ཚང་ཡོད། ཁྱིམ་ཚང་ངམ་རྒྱང་རིང་ལས་དོན་པར་འཚམ་པོ་ཡོད།',
+        location: 'Antony / Parc de Sceaux',
+        specsSummary: 'ཉལ་ཁང་ ༤ · ཁྲུས་ཁང་ ༣ · ༡༦༥ m² · ལྡུམ་ར།',
       },
     },
   },
@@ -586,6 +642,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: 'Vitry-sur-Seine / Flughafe Orly',
         specsSummary: '2025 · Automat · Elektro · 5 Plätz',
       },
+      bo: {
+        title: '༢༠༢༥ གློག་ཤུགས་རླངས་འཁོར་སི་ཌན། — ཐག་རིང་སྐྱོད་ཐུབ་པ།',
+        description:
+          'གློག་ཐེངས་གཅིག་ལ་སྤྱི་ལེ་ ༥༦༠ བསྐྱོད་ཐུབ་པའི་གློག་ཤུགས་སི་ཌན་རླངས་འཁོར་གཙང་མ་ཤེལ་གྱི་གནམ་ཁེབས་དང་རང་འགུལ་མྱུར་ཚད་སྟངས་འཛིན། མགྱོགས་གློག་བྱང་བུ་བཅས་མཉམ་དུ་ཡོད། ཉིན་གླའམ་གཟའ་མཇུག་དང་ཚོང་དོན་ཆེད་གླ་ཐུབ།',
+        location: 'Vitry-sur-Seine / Orly གནམ་ཐང་།',
+        specsSummary: '༢༠༢༥ · རང་འགུལ། · གློག་ཤུགས། · རྐུབ་སྟེགས་ ༥',
+      },
     },
   },
   {
@@ -655,6 +718,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: 'Züri / Gämf / Paris',
         specsSummary: '2024 · Automat · Hybrid · 5 Plätz',
       },
+      bo: {
+        title: '༢༠༢༤ མཉམ་བསྲེས་འཕྲུལ་སྣུམ་ SUV རླངས་འཁོར། — དུས་བཞིར་འཚམ་པ།',
+        description:
+          'མུ་ཏིག་དཀར་པོའི་མདོག་ཅན་གྱི་མཉམ་བསྲེས་འཕྲུལ་སྣུམ་ SUV འདིར་དགུན་ཁའི་འཁོར་ལོ་དང་ Apple CarPlay / Android Auto། ཅ་དངོས་འཇོག་ས་རྒྱ་ཆེན་པོ། འགན་ལེན་ཆ་ཚང་བཅས་ཡོད།',
+        location: 'Zurich / Geneva / Paris',
+        specsSummary: '༢༠༢༤ · རང་འགུལ། · མཉམ་བསྲེས་འཕྲུལ་སྣུམ། · རྐུབ་སྟེགས་ ༥',
+      },
     },
   },
   // LOCAL SALES MARKETPLACE
@@ -719,6 +789,13 @@ export const SEED_LISTINGS: Listing[] = [
         location: 'Vitry-sur-Seine, 94400',
         specsSummary: 'Wie neu · 32GB / 1TB',
       },
+      bo: {
+        title: 'Pro Ultrabook 14" གློག་ཀླད་ (32GB RAM / 1TB SSD) དང་མཐེབ་གཞོང་།',
+        description:
+          'བེད་སྤྱོད་ཉུང་ངུ་ལས་མ་བཏང་བའི་ལག་ཐོགས་གློག་ཀླད་འོད་མདངས་ཅན་དང་སྐུད་མེད་མཐེབ་གཞོང་མཉམ་དུ་བཙོང་རྒྱུ། ཐོག་མའི་སྒམ་དང་ USB-C གློག་གསོག་ཆས། འགན་ལེན་དུས་ཡུན་ལྷག་མ་བཅས་ཡོད།',
+        location: 'Vitry-sur-Seine, 94400',
+        specsSummary: 'གསར་པ་འདྲ་བ། · 32GB / 1TB',
+      },
     },
   },
   {
@@ -781,6 +858,13 @@ export const SEED_LISTINGS: Listing[] = [
           'Edelstahl-Espressomaschine mit PID-Regelig, Manometer, bodelosem Siebträger und Tamper. Frisch entkalkt und prüeft.',
         location: 'Paris 5e / Quartier Latin',
         specsSummary: 'Sehr guet · Dual-Boiler',
+      },
+      bo: {
+        title: 'ཨི་ཊ་ལིའི་ལྕགས་དཀར་ཀཱ་ཕི་བཟོ་འཕྲུལ། (Dual-Boiler Espresso)',
+        description:
+          'PID དྲོད་ཚད་སྟངས་འཛིན་དང་གནོན་ཤུགས་འཇལ་ཆས་ཡོད་པའི་ལག་བཟོས་ལྕགས་དཀར་ཀཱ་ཕི་འཕྲུལ་ཆས། གཙང་སྦྲ་དང་བརྟག་དཔྱད་ལེགས་པར་བྱས་ཟིན་པས་བཙོང་རྒྱུ་ཡོད།',
+        location: 'Paris 5e / Quartier Latin',
+        specsSummary: 'ཧ་ཅང་ལེགས་པོ། · Dual-Boiler PID',
       },
     },
   },

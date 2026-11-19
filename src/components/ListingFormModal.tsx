@@ -72,6 +72,7 @@ function buildImmediateTranslations(
     es: { ...base },
     dz: { ...base },
     gsw: { ...base },
+    bo: { ...base },
   };
 }
 
@@ -131,10 +132,10 @@ export function ListingFormModal({
       setPriceEur(editingListing.type === 'job' ? '0' : String(editingListing.priceEur ?? 0));
       setEmploymentType(editingListing.specs?.employmentType || 'Full-Time');
       setRestaurantName(
-        editingListing.specs?.restaurantName ||
-          (editingListing.isSeeded && editingListing.category === 'restaurant'
-            ? editingListing.ownerName
-            : '')
+        editingListing.type === 'job' && editingListing.category === 'restaurant'
+          ? editingListing.specs?.restaurantName ||
+              (editingListing.isSeeded ? editingListing.ownerName : '')
+          : ''
       );
       setContactEmail(editingListing.contactEmail);
       setContactPhone(editingListing.contactPhone);
@@ -264,7 +265,7 @@ export function ListingFormModal({
     }
     const specs: ListingSpecs = {
       employmentType,
-      ...(!isLookingForJob && restaurantName.trim()
+      ...(isJob && category === 'restaurant' && restaurantName.trim()
         ? { restaurantName: restaurantName.trim() }
         : {}),
     };
@@ -512,8 +513,10 @@ export function ListingFormModal({
                 onChange={(e) => {
                   const nextCat = e.target.value;
                   setCategory(nextCat);
-                  if (nextCat === 'looking_for_job') {
+                  if (nextCat !== 'restaurant') {
                     setRestaurantName('');
+                  }
+                  if (nextCat === 'looking_for_job') {
                     setTitle('');
                   }
                 }}
@@ -528,16 +531,15 @@ export function ListingFormModal({
             </div>
           </div>
 
-          {isJob && !isLookingForJob && (
+          {isJob && category === 'restaurant' && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-300">
-                {t.specsLabels.restaurantName}
-                {category === 'restaurant' && <span className="text-[#D9A438]"> *</span>}
+                {t.specsLabels.restaurantName} <span className="text-[#D9A438]">*</span>
               </label>
               <input
                 type="text"
-                required={category === 'restaurant'}
-                minLength={category === 'restaurant' ? 2 : undefined}
+                required
+                minLength={2}
                 maxLength={120}
                 value={restaurantName}
                 onChange={(e) => setRestaurantName(e.target.value)}
@@ -580,15 +582,17 @@ export function ListingFormModal({
 
             {isJob ? (
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">Schedule / Contract</label>
+                <label className="text-xs font-medium text-slate-300">
+                  {t.listingModal.scheduleLabel}
+                </label>
                 <select
                   value={employmentType}
                   onChange={(e) => setEmploymentType(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 focus:outline-none focus:border-[#D9A438]"
                 >
-                  <option value="Full-Time">Full-Time</option>
-                  <option value="Part-Time">Part-Time</option>
-                  <option value="Flexible">Flexible</option>
+                  <option value="Full-Time">{t.listingModal.scheduleOptions['Full-Time']}</option>
+                  <option value="Part-Time">{t.listingModal.scheduleOptions['Part-Time']}</option>
+                  <option value="Flexible">{t.listingModal.scheduleOptions.Flexible}</option>
                 </select>
               </div>
             ) : (

@@ -37,7 +37,7 @@ export function AboutSection({ lang }: AboutSectionProps) {
                 </p>
               </div>
               <div className="pt-2 border-t border-slate-800/80 text-xs text-[#D9A438] font-medium">
-                JobSQUAD Verified Standard
+                {t.aboutBadge}
               </div>
             </article>
           ))}

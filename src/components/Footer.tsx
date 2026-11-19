@@ -5,9 +5,10 @@ import type { SupportedLang } from '../types/index.ts';
 interface FooterProps {
   lang: SupportedLang;
   onOpenContact: () => void;
+  onOpenLegal: (tab: 'terms' | 'privacy') => void;
 }
 
-export function Footer({ lang, onOpenContact }: FooterProps) {
+export function Footer({ lang, onOpenContact, onOpenLegal }: FooterProps) {
   const t = UI_TEXT[lang];
 
   return (
@@ -125,8 +126,25 @@ export function Footer({ lang, onOpenContact }: FooterProps) {
           </div>
         </div>
 
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <p>© {new Date().getFullYear()} JobSQUAD. {t.footerRights}</p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => onOpenLegal('terms')}
+              className="text-slate-300 hover:text-[#D9A438] underline-offset-4 hover:underline transition-colors cursor-pointer"
+            >
+              {t.legal.termsLink}
+            </button>
+            <span className="text-slate-700" aria-hidden="true">·</span>
+            <button
+              type="button"
+              onClick={() => onOpenLegal('privacy')}
+              className="text-slate-300 hover:text-[#D9A438] underline-offset-4 hover:underline transition-colors cursor-pointer"
+            >
+              {t.legal.privacyLink}
+            </button>
+          </div>
           <p>10 Voie Falguiere, Vitry Sur Seine, 94400, France</p>
         </div>
       </div>

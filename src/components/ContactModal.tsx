@@ -169,7 +169,7 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
                 onClick={handleClose}
                 className="px-6 py-2.5 rounded-lg bg-[#D9A438] text-[#071121] font-semibold text-sm hover:bg-[#E5B34B] transition-colors cursor-pointer"
               >
-                OK
+                {t.ok}
               </button>
             </div>
           ) : (

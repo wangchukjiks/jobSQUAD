@@ -331,6 +331,7 @@ export async function registerWithDetails(input: {
   phone: string;
   password: string;
   accountType: AccountType;
+  acceptedTerms: boolean;
   captchaToken: string;
   captchaAnswer: string;
 }): Promise<UserProfile> {
@@ -344,6 +345,9 @@ export async function registerWithDetails(input: {
   } catch (err) {
     if (!(err instanceof ApiBackendUnavailableError)) throw err;
 
+    if (!input.acceptedTerms) {
+      throw new Error('You must accept the Terms of Service and Privacy Policy to create an account.');
+    }
     if (!verifyLocalCaptcha(input.captchaToken, input.captchaAnswer)) {
       throw new Error('CAPTCHA verification failed. Please try again.');
     }
@@ -353,12 +357,15 @@ export async function registerWithDetails(input: {
       throw new Error('An account with this email already exists. Please log in.');
     }
     const passwordHash = await sha256Hex(input.password);
+    const now = Date.now();
     const created: StaticStoredUser = {
       uid: `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
       displayName: input.displayName.trim(),
       email: cleanEmail,
       phone: input.phone.trim(),
       accountType: input.accountType,
+      acceptedTerms: true,
+      acceptedTermsAt: now,
       isAdmin: cleanEmail === 'wangchukjiks@gmail.com',
       passwordHash,
     };
@@ -370,6 +377,8 @@ export async function registerWithDetails(input: {
       email: created.email,
       phone: created.phone,
       accountType: created.accountType,
+      acceptedTerms: true,
+      acceptedTermsAt: now,
       isAdmin: created.isAdmin,
     };
     setStaticSession(profile);
@@ -433,6 +442,131 @@ export async function logoutServerSession(): Promise<void> {
   } finally {
     writeStoredSessionToken(null);
     setStaticSession(null);
+  }
+}
+
+export interface ServerAdminUser extends UserProfile {
+  createdAt?: number;
+}
+
+export async function fetchServerAdminUsers(): Promise<ServerAdminUser[]> {
+  try {
+    const headers: Record<string, string> = {};
+    if (inMemorySessionToken) {
+      headers['Authorization'] = `Bearer ${inMemorySessionToken}`;
+    }
+    const res = await fetchWithRetry('/api/admin/users', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers,
+    });
+    if (!res.ok) {
+      if (res.status === 404) {
+        return getStaticUsers().map((u) => ({
+          uid: u.uid,
+          displayName: u.displayName,
+          email: u.email,
+          phone: u.phone,
+          accountType: u.accountType,
+          acceptedTerms: u.acceptedTerms,
+          acceptedTermsAt: u.acceptedTermsAt,
+          isAdmin: u.isAdmin,
+        }));
+      }
+      return [];
+    }
+    const data = await parseJsonSafe<{ users: ServerAdminUser[] }>(res);
+    return Array.isArray(data.users) ? data.users : [];
+  } catch (err) {
+    if (err instanceof ApiBackendUnavailableError) {
+      return getStaticUsers().map((u) => ({
+        uid: u.uid,
+        displayName: u.displayName,
+        email: u.email,
+        phone: u.phone,
+        accountType: u.accountType,
+        acceptedTerms: u.acceptedTerms,
+        acceptedTermsAt: u.acceptedTermsAt,
+        isAdmin: u.isAdmin,
+      }));
+    }
+    return [];
+  }
+}
+
+export async function updateServerAdminUser(
+  uid: string,
+  updates: {
+    displayName: string;
+    email: string;
+    phone: string;
+    accountType: AccountType;
+    newPassword?: string;
+  }
+): Promise<ServerAdminUser> {
+  try {
+    const res = await requestProtected<{ user: ServerAdminUser }>(
+      'PUT',
+      `/api/admin/users/${encodeURIComponent(uid)}`,
+      updates
+    );
+    return res.user;
+  } catch (err) {
+    if (!(err instanceof ApiBackendUnavailableError)) throw err;
+    const session = getStaticSession();
+    if (!session?.isAdmin) throw new Error('Forbidden: administrator access required.');
+    const users = getStaticUsers();
+    const idx = users.findIndex((u) => u.uid === uid);
+    if (idx < 0) throw new Error('User account not found.');
+    const nextEmail = updates.email.trim().toLowerCase();
+    if (users.some((u) => u.uid !== uid && u.email.toLowerCase() === nextEmail)) {
+      throw new Error('Another account already uses this email address.');
+    }
+    const nextPasswordHash =
+      updates.newPassword && updates.newPassword.length >= 8
+        ? await sha256Hex(updates.newPassword)
+        : users[idx].passwordHash;
+    const updated: StaticStoredUser = {
+      ...users[idx],
+      displayName: updates.displayName.trim(),
+      email: nextEmail,
+      phone: updates.phone.trim(),
+      accountType: updates.accountType,
+      isAdmin: users[idx].isAdmin || nextEmail === 'wangchukjiks@gmail.com',
+      passwordHash: nextPasswordHash,
+    };
+    users[idx] = updated;
+    writeLocalJson(STATIC_USERS_KEY, users);
+    return {
+      uid: updated.uid,
+      displayName: updated.displayName,
+      email: updated.email,
+      phone: updated.phone,
+      accountType: updated.accountType,
+      acceptedTerms: updated.acceptedTerms,
+      acceptedTermsAt: updated.acceptedTermsAt,
+      isAdmin: updated.isAdmin,
+    };
+  }
+}
+
+export async function deleteServerAdminUser(uid: string): Promise<void> {
+  try {
+    await requestProtected<{ ok: boolean }>('DELETE', `/api/admin/users/${encodeURIComponent(uid)}`);
+  } catch (err) {
+    if (!(err instanceof ApiBackendUnavailableError)) throw err;
+    const session = getStaticSession();
+    if (!session?.isAdmin) throw new Error('Forbidden: administrator access required.');
+    const users = getStaticUsers();
+    const target = users.find((u) => u.uid === uid);
+    if (!target) throw new Error('User account not found.');
+    if (target.email.toLowerCase() === 'wangchukjiks@gmail.com') {
+      throw new Error('Primary administrator account cannot be deleted.');
+    }
+    writeLocalJson(
+      STATIC_USERS_KEY,
+      users.filter((u) => u.uid !== uid)
+    );
   }
 }
 
@@ -520,6 +654,41 @@ export async function updateServerListing(id: string, listing: Partial<Listing>)
       ...(idx >= 0 ? items[idx] : (listing as Listing)),
       ...listing,
       id,
+      updatedAt: Date.now(),
+      isSeeded: false,
+    };
+    if (idx >= 0) items[idx] = updated;
+    else items.unshift(updated);
+    writeLocalJson(STATIC_LISTINGS_KEY, items);
+    return updated;
+  }
+}
+
+export async function flagServerListing(
+  id: string,
+  payload: { flagged: boolean; flagReason: string; listingSnapshot?: Listing }
+): Promise<Listing> {
+  try {
+    const res = await postProtected<{ listing: Listing }>(
+      `/api/listings/${encodeURIComponent(id)}/flag`,
+      payload
+    );
+    return res.listing;
+  } catch (err) {
+    if (!(err instanceof ApiBackendUnavailableError)) throw err;
+    const session = getStaticSession();
+    if (!session?.isAdmin) throw new Error('Forbidden: administrator access required.');
+    const items = readLocalJson<Listing[]>(STATIC_LISTINGS_KEY, []);
+    const idx = items.findIndex((item) => item.id === id);
+    const base = idx >= 0 ? items[idx] : payload.listingSnapshot;
+    if (!base) throw new Error('Listing not found.');
+    const updated: Listing = {
+      ...base,
+      id,
+      flagged: payload.flagged,
+      flagReason: payload.flagged ? payload.flagReason.trim().slice(0, 500) : '',
+      flaggedAt: payload.flagged ? Date.now() : undefined,
+      flaggedBy: payload.flagged ? session.email : undefined,
       updatedAt: Date.now(),
       isSeeded: false,
     };
