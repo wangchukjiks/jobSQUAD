@@ -1095,6 +1095,39 @@ async function startServer() {
     next(err);
   });
 
+  const DEFAULT_PUBLIC_ORIGIN =
+    'https://ais-pre-azkh2mfnufrlj2cmihgtle-1013138806688.europe-west2.run.app';
+
+  function resolvePublicOrigin(req: express.Request): string {
+    const rawHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+    const host = (Array.isArray(rawHost) ? rawHost[0] : rawHost).split(',')[0].trim();
+    const isLocalHost =
+      !host ||
+      host.startsWith('localhost') ||
+      host.startsWith('127.0.0.1') ||
+      host.startsWith('0.0.0.0');
+
+    if (!isLocalHost) {
+      const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const proto =
+        (Array.isArray(rawProto) ? rawProto[0] : rawProto).split(',')[0].trim() || 'https';
+      const effectiveProto = host.endsWith('.run.app') ? 'https' : proto;
+      return `${effectiveProto}://${host}`;
+    }
+
+    const envAppUrl = (process.env.APP_URL || '').trim().replace(/\/+$/, '');
+    if (envAppUrl.startsWith('http://') || envAppUrl.startsWith('https://')) {
+      return envAppUrl;
+    }
+
+    return DEFAULT_PUBLIC_ORIGIN;
+  }
+
+  function injectSocialMetaOrigin(html: string, origin: string): string {
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    return html.split(DEFAULT_PUBLIC_ORIGIN).join(cleanOrigin);
+  }
+
   const distDir = path.resolve(__dirname, 'dist');
   const isProd =
     process.env.NODE_ENV === 'production' ||
@@ -1104,10 +1137,51 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+
+    app.get('*', async (req, res, next) => {
+      const reqPath = req.path || '/';
+      const accept = String(req.headers.accept || '');
+      const ua = String(req.headers['user-agent'] || '');
+      const isBotCrawler =
+        /bot|crawler|spider|facebookexternalhit|twitterbot|whatsapp|slack|discord|telegram|linkedin|embedly|pinterest/i.test(
+          ua
+        );
+      const isDocumentRequest =
+        reqPath === '/' ||
+        (!reqPath.includes('.') &&
+          !reqPath.startsWith('/api/') &&
+          !reqPath.startsWith('/@') &&
+          !reqPath.startsWith('/src/') &&
+          !reqPath.startsWith('/assets/') &&
+          !reqPath.startsWith('/node_modules/') &&
+          (accept.includes('text/html') || isBotCrawler));
+
+      if (!isDocumentRequest) {
+        next();
+        return;
+      }
+
+      try {
+        const templatePath = path.resolve(__dirname, 'index.html');
+        const template = fs.readFileSync(templatePath, 'utf8');
+        const transformed = await vite.transformIndexHtml(req.originalUrl, template);
+        const withOrigin = injectSocialMetaOrigin(transformed, resolvePublicOrigin(req));
+        res.status(200).set({
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        });
+        res.end(withOrigin);
+      } catch (err) {
+        vite.ssrFixStacktrace(err as Error);
+        next(err);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     app.use(
       express.static(distDir, {
+        index: false,
         setHeaders: (res, filePath) => {
           if (filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -1115,9 +1189,13 @@ async function startServer() {
         },
       })
     );
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res) => {
+      const indexHtmlPath = path.join(distDir, 'index.html');
+      const rawHtml = fs.readFileSync(indexHtmlPath, 'utf8');
+      const withOrigin = injectSocialMetaOrigin(rawHtml, resolvePublicOrigin(req));
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      res.sendFile(path.join(distDir, 'index.html'));
+      res.send(withOrigin);
     });
   }
 

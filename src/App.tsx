@@ -73,6 +73,31 @@ function JobSquadShell() {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const { origin, pathname, hostname } = window.location;
+    if (!origin.startsWith('https://') || hostname === 'localhost' || hostname === '127.0.0.1') {
+      return;
+    }
+    const canonicalUrl = `${origin}${pathname}`;
+    const cardImageUrl = `${origin}/assets/jobsquad-og-card.png`;
+
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) canonical.href = canonicalUrl;
+
+    const updates: Array<[string, string]> = [
+      ['meta[property="og:url"]', canonicalUrl],
+      ['meta[name="twitter:url"]', canonicalUrl],
+      ['meta[property="og:image"]', cardImageUrl],
+      ['meta[property="og:image:secure_url"]', cardImageUrl],
+      ['meta[name="twitter:image"]', cardImageUrl],
+    ];
+    for (const [selector, content] of updates) {
+      const el = document.querySelector<HTMLMetaElement>(selector);
+      if (el) el.content = content;
+    }
+  }, []);
+
   const refreshServerListings = async () => {
     const { listings, deletedIds: del } = await fetchServerListings();
     setServerListings(listings);
