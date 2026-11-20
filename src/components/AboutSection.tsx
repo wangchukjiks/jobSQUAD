@@ -9,8 +9,8 @@ export function AboutSection({ lang }: AboutSectionProps) {
   const t = UI_TEXT[lang];
 
   return (
-    <section id="about" className="py-20 sm:py-24 border-b border-slate-800/70">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <section id="about" className="py-14 sm:py-24 border-b border-slate-800/70">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-12">
         <div className="max-w-3xl space-y-4">
           <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-50 [text-wrap:balance]">
             {t.aboutHeading}

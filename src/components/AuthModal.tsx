@@ -56,7 +56,7 @@ function mapGoogleAuthError(err: unknown): string {
     return `Google Sign-In is not yet authorized for "${host}". Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains, or register / log in with Email & Password.`;
   }
   if (code === 'auth/popup-blocked' || msg.includes('popup-blocked')) {
-    return 'Google Sign-In popup was blocked by your browser. Please allow popups for this site and click "Continue with Google" again.';
+    return 'Google Sign-In popup was blocked by your mobile or desktop browser. Allow popups (or open this link in Chrome/Safari instead of an in-app browser) and click "Continue with Google" again, or sign in with Email & Password.';
   }
   if (code === 'auth/popup-closed-by-user' || msg.includes('popup-closed-by-user')) {
     return 'Google Sign-In window was closed before completing sign-in. Please click "Continue with Google" to try again.';
@@ -497,7 +497,7 @@ export function AuthModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+        <div className="p-6 space-y-5 max-h-[82dvh] overflow-y-auto">
           {error && (
             <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-xs text-rose-200 leading-relaxed">
               {error}

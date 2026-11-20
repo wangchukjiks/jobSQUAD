@@ -11,6 +11,12 @@
     font-family: var(--font-body);
     scroll-behavior: smooth;
     color-scheme: dark;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: clip;
   }
 
   h1, h2, h3, h4, .font-display {
@@ -29,7 +35,13 @@
     radial-gradient(rgba(226, 232, 240, 0.065) 1px, transparent 1px),
     linear-gradient(155deg, #06101f 0%, #0b182c 42%, #111824 78%, #141922 100%);
   background-size: 24px 24px, 100% 100%;
-  background-attachment: fixed;
+  background-attachment: scroll;
+}
+
+@media (min-width: 1024px) {
+  .jobsquad-canvas {
+    background-attachment: fixed;
+  }
 }
 
 .jobsquad-surface {

@@ -240,7 +240,7 @@ export function ListingDetailModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[80dvh] overflow-y-auto">
           {listing.flagged && (
             <div className="rounded-xl border border-amber-500/50 bg-amber-950/45 px-4 py-3 text-xs sm:text-sm text-amber-100 flex items-start gap-2.5">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />

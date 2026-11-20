@@ -85,7 +85,7 @@ export function LegalModal({ open, initialTab, lang, onClose }: LegalModalProps)
           </div>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 space-y-5 max-h-[60dvh] overflow-y-auto">
           {sections.map((section) => (
             <section key={section.title} className="space-y-2">
               <h4 className="text-sm sm:text-base font-semibold text-slate-100">

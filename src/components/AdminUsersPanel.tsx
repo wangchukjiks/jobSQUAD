@@ -635,11 +635,11 @@ export function AdminUsersPanel({
       {/* Edit User Modal */}
       {editingUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
           role="dialog"
           aria-modal="true"
         >
-          <div className="jobsquad-surface max-w-md w-full rounded-2xl p-6 space-y-4">
+          <div className="jobsquad-surface max-w-md w-full rounded-2xl p-6 space-y-4 my-auto max-h-[90dvh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold text-white">{au.editModalTitle}</h3>
@@ -750,11 +750,11 @@ export function AdminUsersPanel({
       {/* Delete User Confirmation Modal */}
       {deletingUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
           role="dialog"
           aria-modal="true"
         >
-          <div className="jobsquad-surface max-w-sm w-full rounded-xl p-6 space-y-4">
+          <div className="jobsquad-surface max-w-sm w-full rounded-xl p-6 space-y-4 my-auto">
             <h3 className="text-base font-bold text-slate-100">{au.deleteModalTitle}</h3>
             <p className="text-sm text-slate-300">{au.deleteModalConfirm}</p>
             <div className="px-3 py-2 rounded-lg bg-[#081325] border border-slate-800 text-xs text-slate-300">

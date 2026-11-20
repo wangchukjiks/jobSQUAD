@@ -88,6 +88,15 @@ async function startServer() {
     next();
   });
 
+  // Prevent mobile/proxy caching on dynamic API responses
+  app.use('/api', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    next();
+  });
+
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', service: 'jobsquad-api' });
   });
@@ -1168,7 +1177,11 @@ async function startServer() {
         const withOrigin = injectSocialMetaOrigin(transformed, resolvePublicOrigin(req));
         res.status(200).set({
           'Content-Type': 'text/html; charset=utf-8',
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          Pragma: 'no-cache',
+          Expires: '0',
+          'Surrogate-Control': 'no-store',
+          Vary: 'Host, X-Forwarded-Host, User-Agent',
         });
         res.end(withOrigin);
       } catch (err) {
@@ -1183,8 +1196,19 @@ async function startServer() {
       express.static(distDir, {
         index: false,
         setHeaders: (res, filePath) => {
+          const baseName = path.basename(filePath);
           if (filePath.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+          } else if (
+            filePath.includes(`${path.sep}assets${path.sep}`) &&
+            !/[\\/]assets[\\/]aistudio[\\/]/.test(filePath) &&
+            /-[A-Za-z0-9_-]{6,}\.(js|css|woff2?)$/.test(baseName)
+          ) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else {
+            res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
           }
         },
       })
@@ -1194,7 +1218,11 @@ async function startServer() {
       const rawHtml = fs.readFileSync(indexHtmlPath, 'utf8');
       const withOrigin = injectSocialMetaOrigin(rawHtml, resolvePublicOrigin(req));
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      res.setHeader('Surrogate-Control', 'no-store');
+      res.setHeader('Vary', 'Host, X-Forwarded-Host, User-Agent');
       res.send(withOrigin);
     });
   }

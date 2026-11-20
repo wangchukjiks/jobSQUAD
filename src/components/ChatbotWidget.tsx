@@ -124,8 +124,8 @@ export function ChatbotWidget({ lang, stats, listings }: ChatbotWidgetProps) {
   return (
     <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-3">
       {open && (
-        <div className="jobsquad-surface w-[calc(100vw-2rem)] sm:w-96 rounded-2xl overflow-hidden shadow-2xl border border-slate-700/90">
-          <div className="flex items-center justify-between px-4 py-3 bg-[#081326] border-b border-slate-800">
+        <div className="jobsquad-surface w-[calc(100vw-2rem)] sm:w-96 max-h-[calc(100dvh-6rem)] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-slate-700/90">
+          <div className="flex items-center justify-between px-4 py-3 bg-[#081326] border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-[#D9A438]" />
               <span className="text-xs sm:text-sm font-semibold text-slate-100">
@@ -142,7 +142,7 @@ export function ChatbotWidget({ lang, stats, listings }: ChatbotWidgetProps) {
             </button>
           </div>
 
-          <div className="h-72 overflow-y-auto p-4 space-y-3 bg-[#071121]/95">
+          <div className="h-60 sm:h-72 overflow-y-auto p-4 space-y-3 bg-[#071121]/95">
             {messages.map((msg) => (
               <div
                 key={msg.id}

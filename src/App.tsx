@@ -205,16 +205,27 @@ function JobSquadShell() {
       }
     };
 
+    const handlePageShowOrOnline = () => {
+      void refreshServerListings();
+      void fetchFirestoreListingsOnce()
+        .then((items) => setFirestoreListings(items))
+        .catch(() => {});
+    };
+
     window.addEventListener('focus', handleSyncOnResume);
+    window.addEventListener('pageshow', handlePageShowOrOnline);
+    window.addEventListener('online', handlePageShowOrOnline);
     document.addEventListener('visibilitychange', handleSyncOnResume);
     return () => {
       unsubListings();
       window.removeEventListener('focus', handleSyncOnResume);
+      window.removeEventListener('pageshow', handlePageShowOrOnline);
+      window.removeEventListener('online', handlePageShowOrOnline);
       document.removeEventListener('visibilitychange', handleSyncOnResume);
     };
   }, []);
 
-  // Merge server-persisted listings, Firestore listings, and seed catalog (respecting admin deletions/edits)
+  // Merge server-persisted listings, Firestore listings, and seed catalog (respecting admin deletions & newest edits)
   const allListings = useMemo(() => {
     const deletedSet = new Set(deletedIds);
     const byId = new Map<string, Listing>();
@@ -226,7 +237,11 @@ function JobSquadShell() {
       if (!deletedSet.has(fsItem.id)) byId.set(fsItem.id, fsItem);
     }
     for (const srvItem of serverListings) {
-      if (!deletedSet.has(srvItem.id)) byId.set(srvItem.id, srvItem);
+      if (deletedSet.has(srvItem.id)) continue;
+      const existing = byId.get(srvItem.id);
+      if (!existing || existing.isSeeded || (srvItem.updatedAt || 0) >= (existing.updatedAt || 0)) {
+        byId.set(srvItem.id, srvItem);
+      }
     }
 
     return Array.from(byId.values()).sort(

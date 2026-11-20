@@ -101,10 +101,10 @@ export function Header({
     <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-[#071121]/92 backdrop-blur-md">
       {/* Top Utility Bar: Centralized Contact Us + Support Mobile, Top-Right Language */}
       <div className="border-b border-slate-800/70 bg-[#050C18]/90">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-9 py-1.5 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 text-xs">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-9 py-1.5 flex flex-wrap items-center justify-between sm:grid sm:grid-cols-[1fr_auto_1fr] gap-x-3 gap-y-1.5 text-[11px] sm:text-xs">
           <div className="hidden sm:block" aria-hidden="true" />
 
-          <div className="flex items-center justify-center gap-5 sm:gap-7">
+          <div className="flex items-center justify-center gap-3 sm:gap-7 min-w-0">
             <button
               type="button"
               onClick={onOpenContact}
@@ -122,7 +122,7 @@ export function Header({
             </a>
           </div>
 
-          <div className="flex items-center justify-center sm:justify-end gap-2 shrink-0">
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 ml-auto sm:ml-0">
             <Globe className="w-3.5 h-3.5 text-[#D9A438]" />
             <label htmlFor="lang-select" className="sr-only">
               Language
@@ -131,7 +131,7 @@ export function Header({
               id="lang-select"
               value={lang}
               onChange={(e) => onChangeLang(e.target.value as SupportedLang)}
-              className="bg-[#0E1B30] text-slate-100 border border-slate-700/80 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-[#D9A438] cursor-pointer"
+              className="bg-[#0E1B30] text-slate-100 border border-slate-700/80 rounded px-2 py-0.5 text-[11px] sm:text-xs focus:outline-none focus:border-[#D9A438] cursor-pointer"
             >
               {LANGUAGE_OPTIONS.map((opt) => (
                 <option key={opt.code} value={opt.code} className="bg-[#0E1B30] text-slate-100">
@@ -144,7 +144,7 @@ export function Header({
       </div>
 
       {/* Main Navigation Row */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3 sm:gap-6">
         {/* Brand Logo Zone */}
         <a
           href="#hero"
@@ -152,13 +152,13 @@ export function Header({
             e.preventDefault();
             scrollToSection('hero');
           }}
-          className="inline-flex items-center shrink-0 rounded-lg bg-[#F8FAFC] px-2.5 py-1 border border-[#D9A438]/40 shadow-sm hover:border-[#D9A438] transition-colors"
+          className="inline-flex items-center shrink-0 rounded-lg bg-[#F8FAFC] px-2 sm:px-2.5 py-1 border border-[#D9A438]/40 shadow-sm hover:border-[#D9A438] transition-colors"
         >
           <img
             src="/assets/aistudio/job-squad-logo-2000px_8dfce4de.png"
             alt="JobSQUAD"
             referrerPolicy="no-referrer"
-            className="h-8 sm:h-9 w-auto object-contain"
+            className="h-7 sm:h-9 w-auto object-contain"
           />
         </a>
 
@@ -323,23 +323,31 @@ export function Header({
           )}
         </div>
 
-        {/* Mobile Menu Trigger */}
-        <div className="flex lg:hidden items-center gap-2">
-          {user && (
+        {/* Mobile Menu Trigger & Primary CTA */}
+        <div className="flex lg:hidden items-center gap-2 shrink-0">
+          {user ? (
             <button
               type="button"
               onClick={onOpenCreateListing}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#D9A438] text-[#071121] text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#D9A438] text-[#071121] text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{t.postListing}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              className="px-2.5 sm:px-3.5 py-1.5 rounded-lg bg-[#D9A438] text-[#071121] text-xs font-semibold hover:bg-[#E5B34B] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              {t.registerLogin}
             </button>
           )}
           <button
             type="button"
             onClick={() => setMobileMenuOpen((v) => !v)}
             aria-label="Toggle Menu"
-            className="p-2.5 rounded-lg border border-slate-700 text-slate-200 hover:border-[#D9A438] cursor-pointer"
+            className="p-2 rounded-lg border border-slate-700 text-slate-200 hover:border-[#D9A438] cursor-pointer"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -403,47 +411,73 @@ export function Header({
             {t.navLookingForJob}
           </button>
 
-          <div className="pt-3 border-t border-slate-800 space-y-2">
+          <div className="pt-3 border-t border-slate-800 space-y-2.5">
             {user ? (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectScope(activeScope === 'mine' ? 'all' : 'mine');
-                    scrollToSection('recruitment');
-                  }}
-                  className="px-3 py-2 rounded-lg border border-slate-700 text-xs text-slate-200"
-                >
-                  {t.myPosts}
-                </button>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextScope = activeScope === 'admin' ? 'all' : 'admin';
-                      onSelectScope(nextScope);
-                      if (nextScope === 'admin') {
-                        window.setTimeout(() => scrollToSection('admin-console'), 60);
-                      } else {
-                        scrollToSection('recruitment');
-                      }
-                    }}
-                    className="px-3 py-2 rounded-lg border border-amber-500/40 text-xs text-amber-300"
-                  >
-                    {t.adminPanel}
-                  </button>
-                )}
+              <>
                 <button
                   type="button"
                   onClick={() => {
                     setMobileMenuOpen(false);
-                    onSignOut();
+                    onOpenAuth();
                   }}
-                  className="px-3 py-2 rounded-lg border border-slate-700 text-xs text-slate-300"
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-700/80 bg-[#0B172A] text-xs text-slate-200 hover:border-[#D9A438] cursor-pointer"
                 >
-                  {t.signOut}
+                  <span className="inline-flex items-center gap-2 min-w-0">
+                    <UserCheck className="w-3.5 h-3.5 text-[#D9A438] shrink-0" />
+                    <span className="truncate font-medium">{user.displayName}</span>
+                  </span>
+                  <span className="text-[11px] text-[#D9A438] shrink-0">{user.email}</span>
                 </button>
-              </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectScope(activeScope === 'mine' ? 'all' : 'mine');
+                      scrollToSection('recruitment');
+                    }}
+                    className={`px-3 py-2 rounded-lg border text-xs cursor-pointer ${
+                      activeScope === 'mine'
+                        ? 'border-[#D9A438] bg-[#D9A438]/15 text-[#D9A438]'
+                        : 'border-slate-700 text-slate-200'
+                    }`}
+                  >
+                    {t.myPosts}
+                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextScope = activeScope === 'admin' ? 'all' : 'admin';
+                        onSelectScope(nextScope);
+                        if (nextScope === 'admin') {
+                          window.setTimeout(() => scrollToSection('admin-console'), 60);
+                        } else {
+                          scrollToSection('recruitment');
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs cursor-pointer ${
+                        activeScope === 'admin'
+                          ? 'border-[#D9A438] bg-[#D9A438]/15 text-[#D9A438]'
+                          : 'border-amber-500/40 text-amber-300'
+                      }`}
+                    >
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>{t.adminPanel}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSignOut();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-700 text-xs text-slate-300 cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>{t.signOut}</span>
+                  </button>
+                </div>
+              </>
             ) : (
               <button
                 type="button"
@@ -451,7 +485,7 @@ export function Header({
                   setMobileMenuOpen(false);
                   onOpenAuth();
                 }}
-                className="w-full py-2.5 rounded-lg bg-[#D9A438] text-[#071121] text-sm font-semibold"
+                className="w-full py-2.5 rounded-lg bg-[#D9A438] text-[#071121] text-sm font-semibold cursor-pointer"
               >
                 {t.registerLogin}
               </button>
@@ -522,7 +556,7 @@ export function Header({
                     {t.search.noResults}
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-800/80 max-h-80 overflow-y-auto">
+                  <div className="divide-y divide-slate-800/80 max-h-[55dvh] sm:max-h-80 overflow-y-auto">
                     {matchingListings.slice(0, 6).map((item) => {
                       const tr = item.translations?.[lang];
                       const displayTitle =

@@ -293,7 +293,7 @@ export function ListingsBoard({
       <section
         id="recruitment"
         ref={recruitmentSectionRef}
-        className="scroll-mt-36 py-20 sm:py-24 border-b border-slate-800/70"
+        className="scroll-mt-36 py-14 sm:py-24 border-b border-slate-800/70"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -479,10 +479,10 @@ export function ListingsBoard({
                         </span>
                         <div
                           aria-label={`${t.recruiterMobile}: ${phoneDisplay}`}
-                          className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-[#D9A438]/40 text-sm font-bold font-mono-num text-[#D9A438] whitespace-nowrap select-text"
+                          className="w-full max-w-full overflow-hidden inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-[#D9A438]/40 text-xs sm:text-sm font-bold font-mono-num text-[#D9A438] whitespace-nowrap select-text"
                         >
                           <Phone className="w-4 h-4 shrink-0" />
-                          <span>{phoneDisplay}</span>
+                          <span className="truncate">{phoneDisplay}</span>
                         </div>
                       </div>
 
@@ -548,7 +548,7 @@ export function ListingsBoard({
       </section>
 
       {/* SECTION 2: RENTALS (House & Car Submenu) */}
-      <section id="rentals" className="scroll-mt-36 py-20 sm:py-24 border-b border-slate-800/70">
+      <section id="rentals" className="scroll-mt-36 py-14 sm:py-24 border-b border-slate-800/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="space-y-3 max-w-2xl">
@@ -671,7 +671,7 @@ export function ListingsBoard({
                         </div>
 
                         <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => onViewDetails(item)}
@@ -737,7 +737,7 @@ export function ListingsBoard({
       </section>
 
       {/* SECTION 3: LOCAL SALES MARKETPLACE */}
-      <section id="sales" className="scroll-mt-36 py-20 sm:py-24 border-b border-slate-800/70">
+      <section id="sales" className="scroll-mt-36 py-14 sm:py-24 border-b border-slate-800/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="space-y-3 max-w-2xl">
             <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-50">
@@ -783,7 +783,7 @@ export function ListingsBoard({
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
                           <span>
                             <span className="text-[#D9A438] font-medium">
                               {t.categories[item.category] || item.category}
@@ -829,7 +829,7 @@ export function ListingsBoard({
                         </div>
 
                         <div className="pt-4 border-t border-slate-800/80 space-y-2.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
                             onClick={() => onViewDetails(item)}
