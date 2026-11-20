@@ -349,7 +349,18 @@ export function ListingFormModal({
         editingListing
       );
 
-      const isFirebaseAuthenticated = Boolean(auth.currentUser && auth.currentUser.uid === user.uid);
+      const currentFbUser = auth.currentUser;
+      const isFirebaseAuthenticated = Boolean(currentFbUser);
+
+      if (currentFbUser && !currentFbUser.emailVerified) {
+        setError(
+          'Please verify your email address in the Account menu before publishing or editing so your post syncs across Android, iOS, and Web.'
+        );
+        setSubmitting(false);
+        return;
+      }
+
+      const activeOwnerId = currentFbUser ? currentFbUser.uid : user.uid;
       let savedListing: Listing;
 
       if (editingListing) {
@@ -370,29 +381,34 @@ export function ListingFormModal({
         const canUpdateExistingInFirestore =
           isFirebaseAuthenticated &&
           !editingListing.isSeeded &&
-          (editingListing.ownerId === user.uid || Boolean(user.isAdmin));
+          (editingListing.ownerId === activeOwnerId ||
+            editingListing.ownerId === user.uid ||
+            Boolean(user.isAdmin));
         const canUpsertSeedInFirestore =
           isFirebaseAuthenticated && Boolean(user.isAdmin) && Boolean(editingListing.isSeeded);
 
         if (canUpdateExistingInFirestore) {
-          try {
-            await updateListingDoc(editingListing.id, updates);
-            savedListing = {
-              ...editingListing,
-              ...updates,
-              updatedAt: Date.now(),
-              firestoreSynced: true,
-            };
-            void updateServerListing(editingListing.id, {
-              ...savedListing,
-              firestoreSynced: true,
-            }).catch(() => {});
-          } catch {
-            savedListing = await updateServerListing(editingListing.id, {
-              ...editingListing,
+          if (editingListing.firestoreSynced === false) {
+            await createListingDoc(editingListing.id, {
+              ownerId: activeOwnerId,
+              ownerName: resolvedOwnerName,
+              type: editingListing.type,
               ...updates,
             });
+          } else {
+            await updateListingDoc(editingListing.id, updates);
           }
+          savedListing = {
+            ...editingListing,
+            ...updates,
+            ownerId: editingListing.firestoreSynced === false ? activeOwnerId : editingListing.ownerId,
+            updatedAt: Date.now(),
+            firestoreSynced: true,
+          };
+          void updateServerListing(editingListing.id, {
+            ...savedListing,
+            firestoreSynced: true,
+          }).catch(() => {});
         } else if (canUpsertSeedInFirestore) {
           const nextSeedSnapshot: Listing = {
             ...editingListing,
@@ -416,7 +432,7 @@ export function ListingFormModal({
       } else {
         const newId = `post_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         const payload: Omit<Listing, 'id' | 'createdAt' | 'updatedAt' | 'isSeeded'> = {
-          ownerId: user.uid,
+          ownerId: activeOwnerId,
           ownerName: resolvedOwnerName,
           type,
           category,
@@ -483,7 +499,7 @@ export function ListingFormModal({
             onSaved(enriched);
             if (
               isFirebaseAuthenticated &&
-              (savedListing.ownerId === user.uid || Boolean(user.isAdmin))
+              (savedListing.ownerId === activeOwnerId || Boolean(user.isAdmin))
             ) {
               await updateListingDoc(savedListing.id, { translations }).catch(() => {});
             }
@@ -520,6 +536,12 @@ export function ListingFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80dvh] overflow-y-auto">
+          {!auth.currentUser && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 px-4 py-3 text-xs text-amber-200 leading-relaxed">
+              You are signed in with a device-local session. To automatically sync posts across Android, iOS, Mobile, and Laptop browsers, sign in with Google or an Email/Password account connected to Cloud Sync.
+            </div>
+          )}
+
           {error && (
             <div className="rounded-lg border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-xs text-rose-200">
               {error}

@@ -1,11 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import {
+  createUserWithEmailAndPassword,
   deleteUser,
   getAuth,
+  getRedirectResult,
   GoogleAuthProvider,
   reauthenticateWithPopup,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
+  updateProfile,
   type User,
 } from 'firebase/auth';
 import {
@@ -16,7 +22,7 @@ import {
   getDocFromServer,
   getDocs,
   getDocsFromServer,
-  getFirestore,
+  initializeFirestore,
   onSnapshot,
   orderBy,
   query,
@@ -31,7 +37,11 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import type { Listing, UserProfile } from '../types/index.ts';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(
+  app,
+  { experimentalAutoDetectLongPolling: true },
+  firebaseConfig.firestoreDatabaseId
+);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
@@ -103,9 +113,65 @@ async function testConnection() {
 }
 testConnection();
 
+export function isFirebaseProviderDisabledError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code || '';
+  const msg = err instanceof Error ? err.message : String(err || '');
+  return (
+    code === 'auth/operation-not-allowed' ||
+    msg.includes('operation-not-allowed') ||
+    msg.includes('PASSWORD_LOGIN_DISABLED') ||
+    msg.includes('ADMIN_ONLY_OPERATION')
+  );
+}
+
 export async function signInWithGooglePopup(): Promise<User> {
   const result = await signInWithPopup(auth, googleProvider);
   return result.user;
+}
+
+export async function signInWithGoogleRedirectFallback(): Promise<void> {
+  await signInWithRedirect(auth, googleProvider);
+}
+
+export async function resolveGoogleRedirectResult(): Promise<User | null> {
+  try {
+    const result = await getRedirectResult(auth);
+    return result?.user || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function registerWithFirebaseEmail(
+  email: string,
+  password: string,
+  displayName: string
+): Promise<User> {
+  const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  if (displayName.trim()) {
+    await updateProfile(cred.user, { displayName: displayName.trim().slice(0, 120) }).catch(() => {});
+  }
+  await sendEmailVerification(cred.user).catch(() => {});
+  return cred.user;
+}
+
+export async function signInWithFirebaseEmail(email: string, password: string): Promise<User> {
+  const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+  return cred.user;
+}
+
+export async function resendFirebaseVerificationEmail(): Promise<void> {
+  if (!auth.currentUser) {
+    throw new Error('No active account session found.');
+  }
+  await sendEmailVerification(auth.currentUser);
+}
+
+export async function refreshFirebaseCurrentUser(): Promise<User | null> {
+  if (!auth.currentUser) return null;
+  await auth.currentUser.reload();
+  await auth.currentUser.getIdToken(true);
+  return auth.currentUser;
 }
 
 export async function signOutUser(): Promise<void> {
@@ -137,8 +203,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     if (isBootstrappedAdmin && !acceptedTerms && auth.currentUser?.uid === uid && auth.currentUser?.emailVerified) {
       try {
         await updateDoc(ref, {
-          displayName: String(data.displayName || 'JobSQUAD Administrator'),
-          phone: String(data.phone || '+33 7 59 16 31 33'),
+          displayName: String(data.displayName || 'JobSQUAD Administrator').slice(0, 120),
+          phone: String(data.phone || '+33 7 59 16 31 33').slice(0, 40),
           accountType: data.accountType || 'employer',
           acceptedTerms: true,
           acceptedTermsAt: serverTimestamp(),
@@ -168,14 +234,18 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
   const path = `users/${profile.uid}`;
   const isBootstrappedAdmin = BOOTSTRAPPED_ADMIN_EMAILS.has(profile.email.toLowerCase());
   const effectiveAcceptedTerms = Boolean(profile.acceptedTerms || isBootstrappedAdmin);
+  const cleanName = (profile.displayName || 'Member').trim().slice(0, 120);
+  const safeName = cleanName.length >= 2 ? cleanName : 'Member';
+  const cleanEmail = profile.email.trim().toLowerCase().slice(0, 160);
+  const cleanPhone = profile.phone.trim().slice(0, 40);
   try {
     const ref = doc(db, 'users', profile.uid);
     const existing = await getDoc(ref);
     if (existing.exists()) {
       const existingData = existing.data();
       const updates: Record<string, unknown> = {
-        displayName: profile.displayName,
-        phone: profile.phone,
+        displayName: safeName,
+        phone: cleanPhone,
         accountType: profile.accountType,
         updatedAt: serverTimestamp(),
       };
@@ -193,9 +263,9 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
       }
       await setDoc(ref, {
         uid: profile.uid,
-        displayName: profile.displayName,
-        email: profile.email,
-        phone: profile.phone,
+        displayName: safeName,
+        email: cleanEmail,
+        phone: cleanPhone,
         accountType: profile.accountType,
         acceptedTerms: true,
         acceptedTermsAt: serverTimestamp(),
@@ -323,6 +393,123 @@ export async function adminDeleteUserProfile(uid: string): Promise<void> {
   }
 }
 
+interface FirestoreRestValue {
+  stringValue?: string;
+  integerValue?: string;
+  doubleValue?: number;
+  booleanValue?: boolean;
+  timestampValue?: string;
+  nullValue?: null;
+  arrayValue?: { values?: FirestoreRestValue[] };
+  mapValue?: { fields?: Record<string, FirestoreRestValue> };
+}
+
+function decodeFirestoreRestValue(val: FirestoreRestValue | undefined): unknown {
+  if (!val) return undefined;
+  if ('stringValue' in val && val.stringValue !== undefined) return val.stringValue;
+  if ('integerValue' in val && val.integerValue !== undefined) return Number(val.integerValue);
+  if ('doubleValue' in val && val.doubleValue !== undefined) return Number(val.doubleValue);
+  if ('booleanValue' in val && val.booleanValue !== undefined) return Boolean(val.booleanValue);
+  if ('timestampValue' in val && val.timestampValue !== undefined) {
+    const ms = Date.parse(val.timestampValue);
+    return Number.isFinite(ms) ? ms : Date.now();
+  }
+  if ('nullValue' in val) return null;
+  if ('arrayValue' in val) {
+    return (val.arrayValue?.values || []).map((v) => decodeFirestoreRestValue(v));
+  }
+  if ('mapValue' in val) {
+    const out: Record<string, unknown> = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      out[k] = decodeFirestoreRestValue(v);
+    }
+    return out;
+  }
+  return undefined;
+}
+
+function decodeListingFromRestDocument(docObj: { name?: string; fields?: Record<string, FirestoreRestValue> }): Listing | null {
+  if (!docObj?.name || !docObj.fields) return null;
+  const id = docObj.name.split('/').pop() || '';
+  if (!id) return null;
+  const d: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(docObj.fields)) {
+    d[k] = decodeFirestoreRestValue(v);
+  }
+  return {
+    id,
+    ownerId: String(d.ownerId || ''),
+    ownerName: String(d.ownerName || ''),
+    type: d.type as Listing['type'],
+    category: String(d.category || ''),
+    title: String(d.title || ''),
+    description: String(d.description || ''),
+    location: String(d.location || ''),
+    priceEur: Number(d.priceEur || 0),
+    contactEmail: String(d.contactEmail || ''),
+    contactPhone: String(d.contactPhone || ''),
+    images: Array.isArray(d.images) ? (d.images as string[]) : [],
+    specs: (d.specs && typeof d.specs === 'object' ? d.specs : {}) as Listing['specs'],
+    translations: (d.translations && typeof d.translations === 'object'
+      ? d.translations
+      : {}) as Listing['translations'],
+    status: d.status === 'closed' ? 'closed' : 'active',
+    flagged: Boolean(d.flagged),
+    flagReason: typeof d.flagReason === 'string' ? d.flagReason : '',
+    flaggedAt: typeof d.flaggedAt === 'number' ? d.flaggedAt : undefined,
+    flaggedBy: typeof d.flaggedBy === 'string' ? d.flaggedBy : '',
+    createdAt: typeof d.createdAt === 'number' ? d.createdAt : Date.now(),
+    updatedAt: typeof d.updatedAt === 'number' ? d.updatedAt : Date.now(),
+    isSeeded: false,
+    firestoreSynced: true,
+  };
+}
+
+async function runFirestoreRestQuery(structuredQuery: Record<string, unknown>) {
+  const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/${firebaseConfig.firestoreDatabaseId}/documents:runQuery?key=${encodeURIComponent(firebaseConfig.apiKey)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({ structuredQuery }),
+  });
+  if (!res.ok) {
+    throw new Error(`Firestore REST query failed (${res.status})`);
+  }
+  return (await res.json()) as Array<{
+    document?: { name?: string; fields?: Record<string, FirestoreRestValue> };
+  }>;
+}
+
+async function fetchListingsViaRest(): Promise<Listing[]> {
+  const rows = await runFirestoreRestQuery({
+    from: [{ collectionId: 'listings' }],
+    orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
+  });
+  const items: Listing[] = [];
+  for (const row of rows) {
+    if (row.document) {
+      const parsed = decodeListingFromRestDocument(row.document);
+      if (parsed) items.push(parsed);
+    }
+  }
+  return items;
+}
+
+async function fetchDeletedSeedsViaRest(): Promise<string[]> {
+  const rows = await runFirestoreRestQuery({
+    from: [{ collectionId: 'deletedSeeds' }],
+  });
+  const ids: string[] = [];
+  for (const row of rows) {
+    const name = row.document?.name;
+    const id = name ? name.split('/').pop() : '';
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
 function mapListingDoc(docSnap: QueryDocumentSnapshot): Listing {
   const d = docSnap.data();
   return {
@@ -348,6 +535,7 @@ function mapListingDoc(docSnap: QueryDocumentSnapshot): Listing {
     createdAt: d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now(),
     updatedAt: d.updatedAt?.toMillis ? d.updatedAt.toMillis() : Date.now(),
     isSeeded: false,
+    firestoreSynced: true,
   };
 }
 
@@ -359,10 +547,14 @@ export async function fetchFirestoreListingsOnce(): Promise<Listing[]> {
     return snap.docs.map(mapListingDoc);
   } catch {
     try {
-      const snap = await getDocs(q);
-      return snap.docs.map(mapListingDoc);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, path);
+      return await fetchListingsViaRest();
+    } catch {
+      try {
+        const snap = await getDocs(q);
+        return snap.docs.map(mapListingDoc);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
     }
   }
 }
@@ -401,13 +593,17 @@ export function subscribeListings(
 export async function fetchDeletedSeedsOnce(): Promise<string[]> {
   const path = 'deletedSeeds';
   try {
-    let snap;
     try {
-      snap = await getDocsFromServer(collection(db, path));
+      const snap = await getDocsFromServer(collection(db, path));
+      return snap.docs.map((d) => d.id);
     } catch {
-      snap = await getDocs(collection(db, path));
+      try {
+        return await fetchDeletedSeedsViaRest();
+      } catch {
+        const snap = await getDocs(collection(db, path));
+        return snap.docs.map((d) => d.id);
+      }
     }
-    return snap.docs.map((d) => d.id);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
@@ -593,27 +789,47 @@ export async function createListingDoc(
   payload: Omit<Listing, 'id' | 'createdAt' | 'updatedAt' | 'isSeeded'>
 ): Promise<void> {
   const path = `listings/${listingId}`;
+  const current = auth.currentUser;
+  if (!current) {
+    throw new Error('Authentication required to sync listing across devices.');
+  }
+  if (!current.emailVerified) {
+    throw new Error('Please verify your email address before publishing so your post syncs across all devices.');
+  }
   try {
+    const sanitized = buildSanitizedFirestorePayload(
+      { ...payload, id: listingId, createdAt: Date.now(), updatedAt: Date.now() } as Listing,
+      current.uid
+    );
     await setDoc(doc(db, 'listings', listingId), {
-      ownerId: payload.ownerId,
-      ownerName: payload.ownerName,
-      type: payload.type,
-      category: payload.category,
-      title: payload.title,
-      description: payload.description,
-      location: payload.location,
-      priceEur: Number(payload.priceEur),
-      contactEmail: payload.contactEmail,
-      contactPhone: payload.contactPhone,
-      images: payload.images,
-      specs: payload.specs,
-      translations: payload.translations,
-      status: payload.status,
+      ...sanitized,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function userUpsertOwnListingDoc(listingId: string, listing: Listing): Promise<void> {
+  const path = `listings/${listingId}`;
+  const current = auth.currentUser;
+  if (!current || !current.emailVerified) {
+    throw new Error('Verified account required to sync listing.');
+  }
+  try {
+    const ref = doc(db, 'listings', listingId);
+    const snap = await getDoc(ref);
+    const sanitized = buildSanitizedFirestorePayload(listing, current.uid);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        ...sanitized,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
@@ -638,11 +854,65 @@ export async function updateListingDoc(
   >
 ): Promise<void> {
   const path = `listings/${listingId}`;
+  const current = auth.currentUser;
+  if (!current) {
+    throw new Error('Authentication required to update listing.');
+  }
+  if (!current.emailVerified) {
+    throw new Error('Please verify your email address before updating listings.');
+  }
   try {
-    await updateDoc(doc(db, 'listings', listingId), {
-      ...updates,
+    const cleanUpdates: Record<string, unknown> = {
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (updates.category !== undefined) {
+      cleanUpdates.category = clampString(updates.category, 'babysitting', 1, 80);
+    }
+    if (updates.title !== undefined) {
+      cleanUpdates.title = clampString(updates.title, 'JobSQUAD Listing', 2, 160);
+    }
+    if (updates.description !== undefined) {
+      cleanUpdates.description = clampString(
+        updates.description,
+        'JobSQUAD community marketplace listing.',
+        10,
+        3000
+      );
+    }
+    if (updates.location !== undefined) {
+      cleanUpdates.location = clampString(updates.location, 'Europe', 2, 160);
+    }
+    if (updates.priceEur !== undefined) {
+      cleanUpdates.priceEur = Math.max(0, Math.min(100000000, Number(updates.priceEur) || 0));
+    }
+    if (updates.contactEmail !== undefined) {
+      cleanUpdates.contactEmail = clampString(updates.contactEmail, 'contact@jobsquad.local', 5, 160);
+    }
+    if (updates.contactPhone !== undefined) {
+      cleanUpdates.contactPhone = String(updates.contactPhone || '').trim().slice(0, 40);
+    }
+    if (updates.images !== undefined) {
+      cleanUpdates.images = (Array.isArray(updates.images) ? updates.images : [])
+        .filter((img): img is string => typeof img === 'string' && img.length > 0 && img.length <= 450000)
+        .slice(0, 3);
+    }
+    if (updates.specs !== undefined && updates.specs && typeof updates.specs === 'object') {
+      cleanUpdates.specs = updates.specs;
+    }
+    if (
+      updates.translations !== undefined &&
+      updates.translations &&
+      typeof updates.translations === 'object'
+    ) {
+      cleanUpdates.translations = updates.translations;
+    }
+    if (updates.status !== undefined) {
+      cleanUpdates.status = updates.status === 'closed' ? 'closed' : 'active';
+    }
+    if (updates.ownerName !== undefined) {
+      cleanUpdates.ownerName = clampString(updates.ownerName, 'JobSQUAD Member', 2, 120);
+    }
+    await updateDoc(doc(db, 'listings', listingId), cleanUpdates);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }

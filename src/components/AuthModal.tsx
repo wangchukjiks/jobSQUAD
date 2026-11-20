@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   Loader2,
   LogOut,
+  MailCheck,
+  RefreshCw,
   ShieldCheck,
   Trash2,
   UserCheck,
@@ -26,14 +28,55 @@ import {
   checkIsAdmin,
   deleteOwnFirebaseAccount,
   getUserProfile,
+  isFirebaseProviderDisabledError,
+  refreshFirebaseCurrentUser,
+  registerWithFirebaseEmail,
+  resendFirebaseVerificationEmail,
   saveUserProfile,
+  signInWithFirebaseEmail,
   signInWithGooglePopup,
+  signInWithGoogleRedirectFallback,
   signOutUser,
 } from '../lib/firebase.ts';
 import { formatPhoneNumber } from '../lib/phone.ts';
 import type { AccountType, SupportedLang, UserProfile } from '../types/index.ts';
 import { CaptchaField } from './CaptchaField.tsx';
 import { PhoneInput } from './PhoneInput.tsx';
+
+const PENDING_PROFILE_STORAGE_KEY = 'jobsquad_pending_fb_profile_v1';
+
+interface PendingProfileSnapshot {
+  email: string;
+  displayName: string;
+  phone: string;
+  accountType: AccountType;
+}
+
+function savePendingProfileSnapshot(snapshot: PendingProfileSnapshot | null): void {
+  try {
+    if (!snapshot) {
+      localStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
+    } else {
+      localStorage.setItem(PENDING_PROFILE_STORAGE_KEY, JSON.stringify(snapshot));
+    }
+  } catch {
+    // Ignore storage quota issues
+  }
+}
+
+function readPendingProfileSnapshot(email?: string | null): PendingProfileSnapshot | null {
+  try {
+    const raw = localStorage.getItem(PENDING_PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingProfileSnapshot;
+    if (email && parsed.email?.toLowerCase() !== email.trim().toLowerCase()) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 interface AuthModalProps {
   open: boolean;
@@ -65,10 +108,23 @@ function mapGoogleAuthError(err: unknown): string {
     return 'A previous Google Sign-In popup was still open. Please try again.';
   }
   if (code === 'auth/operation-not-allowed' || msg.includes('operation-not-allowed')) {
-    return 'Google Sign-In provider is not enabled in Firebase Authentication.';
+    return 'Sign-In provider is not enabled in Firebase Authentication.';
   }
   if (code === 'auth/account-exists-with-different-credential') {
-    return 'An account already exists with the same email address using another sign-in method.';
+    return 'An account already exists with the same email address using another sign-in method (such as Google or Email & Password).';
+  }
+  if (code === 'auth/email-already-in-use') {
+    return 'An account with this email already exists. Please switch to Log In or Continue with Google.';
+  }
+  if (code === 'auth/weak-password') {
+    return 'Password must be at least 6 characters long (8+ recommended).';
+  }
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found'
+  ) {
+    return 'Invalid email address or password.';
   }
   return msg;
 }
@@ -147,11 +203,15 @@ export function AuthModal({
 
   if (!open) return null;
 
+  const needsEmailVerification = Boolean(firebaseUser && !firebaseUser.emailVerified);
   const isCompleteProfile = Boolean(
-    profile && profile.phone && (profile.acceptedTerms || profile.isAdmin || !firebaseUser)
+    profile &&
+      profile.phone &&
+      (profile.acceptedTerms || profile.isAdmin || !firebaseUser) &&
+      !needsEmailVerification
   );
   const isLoggedInView = Boolean(profile && isCompleteProfile);
-  const isGoogleNeedsProfile = Boolean(firebaseUser && !isCompleteProfile);
+  const isGoogleNeedsProfile = Boolean(firebaseUser && firebaseUser.emailVerified && !isCompleteProfile);
   const isPrimaryAdmin =
     (profile?.email || firebaseUser?.email || '').trim().toLowerCase() === PROTECTED_ADMIN_EMAIL;
 
@@ -166,85 +226,134 @@ export function AuthModal({
     }
   };
 
+  const finalizeVerifiedFirebaseUser = async (
+    fbUser: User,
+    fallback?: PendingProfileSnapshot | null
+  ): Promise<boolean> => {
+    const adminFlag = await checkIsAdmin(fbUser);
+
+    let firestoreProfile: UserProfile | null = null;
+    try {
+      firestoreProfile = await getUserProfile(fbUser.uid);
+    } catch {
+      firestoreProfile = null;
+    }
+
+    let syncedUser: UserProfile | null = null;
+    try {
+      const idToken = await fbUser.getIdToken();
+      syncedUser = await syncFirebaseSession(
+        idToken,
+        firestoreProfile
+          ? {
+              uid: fbUser.uid,
+              email: fbUser.email || firestoreProfile.email,
+              displayName: firestoreProfile.displayName,
+              phone: firestoreProfile.phone,
+              accountType: firestoreProfile.accountType,
+              acceptedTerms: firestoreProfile.acceptedTerms,
+            }
+          : {
+              uid: fbUser.uid,
+              email: fbUser.email || '',
+              displayName:
+                fallback?.displayName || fbUser.displayName || fbUser.email?.split('@')[0],
+              phone: fallback?.phone,
+              accountType: fallback?.accountType,
+              acceptedTerms: Boolean(fallback?.phone),
+            }
+      );
+    } catch {
+      // Continue even on static hosts or offline Express
+    }
+
+    let existingProfile: UserProfile | null = firestoreProfile;
+    if (!existingProfile) {
+      if (
+        syncedUser &&
+        syncedUser.email.toLowerCase() === (fbUser.email || '').toLowerCase()
+      ) {
+        existingProfile = syncedUser;
+      } else {
+        const srvProfile = await fetchCurrentAuthUser().catch(() => null);
+        if (
+          srvProfile &&
+          srvProfile.email.toLowerCase() === (fbUser.email || '').toLowerCase()
+        ) {
+          existingProfile = srvProfile;
+        }
+      }
+    }
+
+    const effectiveDisplayName =
+      existingProfile?.displayName ||
+      fallback?.displayName ||
+      fbUser.displayName ||
+      fbUser.email?.split('@')[0] ||
+      'Member';
+    const effectivePhone = existingProfile?.phone || fallback?.phone || '';
+    const effectiveType = existingProfile?.accountType || fallback?.accountType || 'employer';
+    const effectiveAccepted = Boolean(
+      existingProfile?.acceptedTerms || fallback?.phone || adminFlag || existingProfile?.isAdmin
+    );
+
+    if (effectivePhone && effectiveAccepted) {
+      const mergedProfile: UserProfile = {
+        uid: fbUser.uid,
+        displayName: effectiveDisplayName,
+        email: fbUser.email || existingProfile?.email || '',
+        phone: formatPhoneNumber(effectivePhone),
+        accountType: effectiveType,
+        acceptedTerms: true,
+        acceptedTermsAt: existingProfile?.acceptedTermsAt || Date.now(),
+        isAdmin: Boolean(adminFlag || existingProfile?.isAdmin),
+      };
+
+      if (!firestoreProfile && fbUser.emailVerified) {
+        await saveUserProfile({
+          uid: fbUser.uid,
+          displayName: mergedProfile.displayName,
+          email: mergedProfile.email,
+          phone: mergedProfile.phone,
+          accountType: mergedProfile.accountType,
+          acceptedTerms: true,
+        }).catch(() => {});
+      }
+
+      savePendingProfileSnapshot(null);
+      onProfileSaved(mergedProfile);
+      onClose();
+      return true;
+    }
+
+    setDisplayName(effectiveDisplayName);
+    setEmail(fbUser.email || '');
+    setPhone(effectivePhone ? formatPhoneNumber(effectivePhone) : '');
+    setAccountType(effectiveType);
+    setAcceptedTerms(effectiveAccepted);
+    return false;
+  };
+
   const handleGoogleSignIn = async () => {
     setError('');
     setStatusMessage('');
     setLoading(true);
     try {
       const fbUser = await signInWithGooglePopup();
-      const adminFlag = await checkIsAdmin(fbUser);
-
-      let existingProfile: UserProfile | null = null;
-      try {
-        existingProfile = await getUserProfile(fbUser.uid);
-      } catch {
-        existingProfile = null;
-      }
-
-      let syncedUser: UserProfile | null = null;
-      try {
-        const idToken = await fbUser.getIdToken();
-        syncedUser = await syncFirebaseSession(
-          idToken,
-          existingProfile
-            ? {
-                uid: fbUser.uid,
-                email: fbUser.email || existingProfile.email,
-                displayName: existingProfile.displayName,
-                phone: existingProfile.phone,
-                accountType: existingProfile.accountType,
-                acceptedTerms: existingProfile.acceptedTerms,
-              }
-            : {
-                uid: fbUser.uid,
-                email: fbUser.email || '',
-                displayName: fbUser.displayName || undefined,
-              }
-        );
-      } catch {
-        // Continue even on static hosts
-      }
-
-      if (!existingProfile) {
-        if (
-          syncedUser &&
-          syncedUser.email.toLowerCase() === (fbUser.email || '').toLowerCase()
-        ) {
-          existingProfile = syncedUser;
-        } else {
-          const srvProfile = await fetchCurrentAuthUser().catch(() => null);
-          if (
-            srvProfile &&
-            srvProfile.email.toLowerCase() === (fbUser.email || '').toLowerCase()
-          ) {
-            existingProfile = srvProfile;
-          }
-        }
-      }
-
-      if (
-        existingProfile &&
-        existingProfile.phone &&
-        (existingProfile.acceptedTerms || adminFlag || existingProfile.isAdmin)
-      ) {
-        const mergedProfile: UserProfile = {
-          ...existingProfile,
-          phone: formatPhoneNumber(existingProfile.phone),
-          acceptedTerms: true,
-          isAdmin: Boolean(adminFlag || existingProfile.isAdmin),
-        };
-        onProfileSaved(mergedProfile);
-        onClose();
-        return;
-      }
-
-      setDisplayName(existingProfile?.displayName || fbUser.displayName || '');
-      setEmail(fbUser.email || '');
-      setPhone(existingProfile?.phone ? formatPhoneNumber(existingProfile.phone) : '');
-      setAccountType(existingProfile?.accountType || 'employer');
-      setAcceptedTerms(Boolean(existingProfile?.acceptedTerms || adminFlag));
+      await finalizeVerifiedFirebaseUser(fbUser, readPendingProfileSnapshot(fbUser.email));
     } catch (err) {
-      setError(mapGoogleAuthError(err));
+      const code = (err as { code?: string })?.code || '';
+      const isTopWindow = typeof window !== 'undefined' && window.self === window.top;
+      if (code === 'auth/popup-blocked' && isTopWindow) {
+        try {
+          await signInWithGoogleRedirectFallback();
+          return;
+        } catch (redirectErr) {
+          setError(mapGoogleAuthError(redirectErr));
+        }
+      } else {
+        setError(mapGoogleAuthError(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -255,8 +364,50 @@ export function AuthModal({
     setStatusMessage('');
     setLoading(true);
     try {
+      savePendingProfileSnapshot(null);
       await Promise.allSettled([signOutUser(), logoutServerSession()]);
       resetFormFields('register');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckEmailVerification = async () => {
+    setError('');
+    setStatusMessage('');
+    setLoading(true);
+    try {
+      const updated = await refreshFirebaseCurrentUser();
+      if (!updated) {
+        setError('Your session expired. Please sign in again.');
+        return;
+      }
+      if (!updated.emailVerified) {
+        setError(
+          'Your email is not verified yet. Please click the verification link in your inbox (or spam folder), then tap Continue again.'
+        );
+        return;
+      }
+      const pending = readPendingProfileSnapshot(updated.email);
+      await finalizeVerifiedFirebaseUser(updated, pending);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to check verification status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setError('');
+    setStatusMessage('');
+    setLoading(true);
+    try {
+      await resendFirebaseVerificationEmail();
+      setStatusMessage(
+        `Verification email sent to ${firebaseUser?.email || email}. Please check your inbox and spam folder.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not resend verification email.');
     } finally {
       setLoading(false);
     }
@@ -277,20 +428,70 @@ export function AuthModal({
     }
     setLoading(true);
     try {
-      const registeredUser = await registerWithDetails({
+      const captchaOk = await verifyCaptchaAnswer(captchaToken, captchaAnswer);
+      if (!captchaOk) {
+        setError('CAPTCHA verification failed. Please try again.');
+        await refreshCaptcha();
+        setLoading(false);
+        return;
+      }
+
+      const pendingSnapshot: PendingProfileSnapshot = {
+        email: email.trim().toLowerCase(),
         displayName: displayName.trim(),
-        email: email.trim(),
         phone: formattedPhone,
-        password,
         accountType,
-        acceptedTerms: true,
-        captchaToken,
-        captchaAnswer,
-      });
-      onProfileSaved(registeredUser);
-      onClose();
+      };
+      savePendingProfileSnapshot(pendingSnapshot);
+
+      try {
+        const fbUser = await registerWithFirebaseEmail(
+          email.trim(),
+          password,
+          displayName.trim()
+        );
+        try {
+          const idToken = await fbUser.getIdToken();
+          await syncFirebaseSession(idToken, {
+            uid: fbUser.uid,
+            email: fbUser.email || email.trim(),
+            displayName: displayName.trim(),
+            phone: formattedPhone,
+            accountType,
+            acceptedTerms: true,
+          });
+        } catch {
+          // Ignore server mirror error if offline/static
+        }
+
+        if (fbUser.emailVerified) {
+          await finalizeVerifiedFirebaseUser(fbUser, pendingSnapshot);
+        } else {
+          setStatusMessage(
+            `Account created! We sent a verification link to ${fbUser.email || email.trim()}. Verify your email so posts sync across Android, iOS, and desktop.`
+          );
+        }
+      } catch (fbErr) {
+        if (isFirebaseProviderDisabledError(fbErr)) {
+          savePendingProfileSnapshot(null);
+          const registeredUser = await registerWithDetails({
+            displayName: displayName.trim(),
+            email: email.trim(),
+            phone: formattedPhone,
+            password,
+            accountType,
+            acceptedTerms: true,
+            captchaToken,
+            captchaAnswer,
+          });
+          onProfileSaved(registeredUser);
+          onClose();
+          return;
+        }
+        throw fbErr;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed.');
+      setError(mapGoogleAuthError(err));
       await refreshCaptcha();
     } finally {
       setLoading(false);
@@ -303,14 +504,79 @@ export function AuthModal({
     setStatusMessage('');
     setLoading(true);
     try {
-      const loggedInUser = await loginWithCredentials({
-        email: email.trim(),
-        password,
-      });
-      onProfileSaved(loggedInUser);
-      onClose();
+      try {
+        const fbUser = await signInWithFirebaseEmail(email.trim(), password);
+        if (!fbUser.emailVerified) {
+          await resendFirebaseVerificationEmail().catch(() => {});
+          setStatusMessage(
+            `Please verify ${fbUser.email || email.trim()} using the link we emailed you so your account syncs across all devices.`
+          );
+          return;
+        }
+        await finalizeVerifiedFirebaseUser(fbUser, readPendingProfileSnapshot(fbUser.email));
+        return;
+      } catch (fbErr) {
+        const fbCode = (fbErr as { code?: string })?.code || '';
+        if (isFirebaseProviderDisabledError(fbErr)) {
+          const loggedInUser = await loginWithCredentials({
+            email: email.trim(),
+            password,
+          });
+          onProfileSaved(loggedInUser);
+          onClose();
+          return;
+        }
+
+        if (
+          fbCode === 'auth/user-not-found' ||
+          fbCode === 'auth/invalid-credential' ||
+          fbCode === 'auth/wrong-password'
+        ) {
+          // Attempt transparent migration from legacy Express server credentials
+          let srvUser: UserProfile | null = null;
+          try {
+            srvUser = await loginWithCredentials({
+              email: email.trim(),
+              password,
+            });
+          } catch {
+            srvUser = null;
+          }
+
+          if (srvUser) {
+            const pendingSnapshot: PendingProfileSnapshot = {
+              email: srvUser.email,
+              displayName: srvUser.displayName,
+              phone: formatPhoneNumber(srvUser.phone || ''),
+              accountType: srvUser.accountType || 'employer',
+            };
+            savePendingProfileSnapshot(pendingSnapshot);
+            try {
+              const migratedFbUser = await registerWithFirebaseEmail(
+                srvUser.email,
+                password,
+                srvUser.displayName
+              );
+              if (migratedFbUser.emailVerified) {
+                await finalizeVerifiedFirebaseUser(migratedFbUser, pendingSnapshot);
+                return;
+              }
+              setStatusMessage(
+                `We upgraded your account to Cloud Sync! Please click the verification link sent to ${srvUser.email} to sync across Android, iOS, and desktop.`
+              );
+              return;
+            } catch {
+              // If email already uses Google Sign-In, fall back cleanly to their server session
+              onProfileSaved(srvUser);
+              onClose();
+              return;
+            }
+          }
+        }
+        throw fbErr;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid login credentials.');
+      setError(mapGoogleAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -474,9 +740,11 @@ export function AuthModal({
 
   const modalHeaderTitle = isLoggedInView
     ? t.authModal.accountTitle
-    : isGoogleNeedsProfile
-      ? t.authModal.completeProfile
-      : t.authModal.title;
+    : needsEmailVerification
+      ? 'Verify Your Email'
+      : isGoogleNeedsProfile
+        ? t.authModal.completeProfile
+        : t.authModal.title;
 
   return (
     <div
@@ -633,6 +901,57 @@ export function AuthModal({
                   </div>
                 )}
               </div>
+            </div>
+          ) : needsEmailVerification && firebaseUser ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-[#D9A438]/40 bg-[#0A1527] p-4 space-y-2.5">
+                <div className="flex items-center gap-2.5 text-[#D9A438]">
+                  <MailCheck className="w-5 h-5 shrink-0" />
+                  <h4 className="text-sm font-bold text-slate-100">
+                    Confirm Your Email to Sync Across All Devices
+                  </h4>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  We sent a verification email to{' '}
+                  <strong className="text-[#D9A438]">{firebaseUser.email}</strong>. Open that
+                  email and click the verification link, then tap{' '}
+                  <strong className="text-slate-100">I&apos;ve Verified — Continue</strong> below.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleCheckEmailVerification}
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#D9A438] text-[#071121] font-semibold text-sm hover:bg-[#E5B34B] transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4" />
+                )}
+                <span>I&apos;ve Verified — Continue</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleResendVerification}
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-700 bg-[#0A1527] text-xs font-medium text-slate-200 hover:border-[#D9A438] hover:text-[#D9A438] transition-colors cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Resend Verification Email</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleSwitchGoogleAccount}
+                className="w-full inline-flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{t.authModal.switchAccountBtn}</span>
+              </button>
             </div>
           ) : isGoogleNeedsProfile && firebaseUser ? (
             <form onSubmit={handleSaveGoogleProfile} className="space-y-4">

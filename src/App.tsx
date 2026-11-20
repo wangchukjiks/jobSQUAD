@@ -38,9 +38,12 @@ import {
   flagListingDoc,
   getUserProfile,
   markSeedDeletedDoc,
+  resolveGoogleRedirectResult,
+  saveUserProfile,
   signOutUser,
   subscribeDeletedSeeds,
   subscribeListings,
+  userUpsertOwnListingDoc,
 } from './lib/firebase.ts';
 import type { Listing, SupportedLang, UserProfile } from './types/index.ts';
 
@@ -56,6 +59,7 @@ function JobSquadShell() {
   const [firestoreDeletedSeeds, setFirestoreDeletedSeeds] = useState<string[]>([]);
   const [serverListings, setServerListings] = useState<Listing[]>([]);
   const [serverDeletedIds, setServerDeletedIds] = useState<string[]>([]);
+  const [legacyUserIds, setLegacyUserIds] = useState<string[]>([]);
 
   const [rentalsSubtab, setRentalsSubtab] = useState<'house' | 'car'>('house');
   const [selectedJobCat, setSelectedJobCat] = useState<string>('all');
@@ -113,8 +117,9 @@ function JobSquadShell() {
 
   useEffect(() => {
     ensureCsrfToken().catch(() => {});
+    resolveGoogleRedirectResult().catch(() => {});
     fetchCurrentAuthUser().then(async (srvUser) => {
-      if (srvUser) {
+      if (srvUser && !auth.currentUser) {
         setUserProfile(srvUser);
         setIsAdmin(Boolean(srvUser.isAdmin));
       }
@@ -126,6 +131,7 @@ function JobSquadShell() {
     const unsubAuth = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (!fbUser) {
+        setLegacyUserIds([]);
         const srvUser = await fetchCurrentAuthUser();
         if (srvUser) {
           setUserProfile(srvUser);
@@ -143,10 +149,12 @@ function JobSquadShell() {
       setIsAdmin(adminFlag);
 
       let existingProfile: UserProfile | null = null;
-      try {
-        existingProfile = await getUserProfile(fbUser.uid);
-      } catch {
-        existingProfile = null;
+      if (fbUser.emailVerified) {
+        try {
+          existingProfile = await getUserProfile(fbUser.uid);
+        } catch {
+          existingProfile = null;
+        }
       }
 
       let syncedUser: UserProfile | null = null;
@@ -173,25 +181,58 @@ function JobSquadShell() {
         // Continue with client-side Firebase session
       }
 
+      if (syncedUser?.uid && syncedUser.uid !== fbUser.uid) {
+        setLegacyUserIds((prev) => (prev.includes(syncedUser!.uid) ? prev : [...prev, syncedUser!.uid]));
+      }
+
       const resolvedProfile = existingProfile || syncedUser;
-      if (resolvedProfile && resolvedProfile.phone && (resolvedProfile.acceptedTerms || adminFlag || resolvedProfile.isAdmin)) {
-        setUserProfile({ ...resolvedProfile, isAdmin: Boolean(adminFlag || resolvedProfile.isAdmin) });
-      } else {
-        setUserProfile({
-          uid: resolvedProfile?.uid || fbUser.uid,
-          displayName: resolvedProfile?.displayName || fbUser.displayName || fbUser.email?.split('@')[0] || 'Member',
-          email: resolvedProfile?.email || fbUser.email || '',
-          phone: resolvedProfile?.phone || '',
-          accountType: resolvedProfile?.accountType || 'employer',
-          acceptedTerms: Boolean(resolvedProfile?.acceptedTerms || adminFlag),
-          isAdmin: Boolean(adminFlag || resolvedProfile?.isAdmin),
-        });
-        if (!resolvedProfile?.phone || !(resolvedProfile?.acceptedTerms || adminFlag)) {
-          setAuthOpen(true);
-        }
+      const effectivePhone = resolvedProfile?.phone || '';
+      const effectiveAccepted = Boolean(
+        resolvedProfile?.acceptedTerms || adminFlag || resolvedProfile?.isAdmin
+      );
+
+      const finalProfile: UserProfile = {
+        uid: fbUser.uid,
+        displayName:
+          resolvedProfile?.displayName ||
+          fbUser.displayName ||
+          fbUser.email?.split('@')[0] ||
+          'Member',
+        email: fbUser.email || resolvedProfile?.email || '',
+        phone: effectivePhone,
+        accountType: resolvedProfile?.accountType || 'employer',
+        acceptedTerms: effectiveAccepted,
+        acceptedTermsAt: resolvedProfile?.acceptedTermsAt,
+        isAdmin: Boolean(adminFlag || resolvedProfile?.isAdmin),
+      };
+
+      if (!existingProfile && fbUser.emailVerified && finalProfile.phone && finalProfile.acceptedTerms) {
+        void saveUserProfile({
+          uid: finalProfile.uid,
+          displayName: finalProfile.displayName,
+          email: finalProfile.email,
+          phone: finalProfile.phone,
+          accountType: finalProfile.accountType,
+          acceptedTerms: true,
+        }).catch(() => {});
+      }
+
+      setUserProfile(finalProfile);
+
+      if (fbUser.emailVerified && (!finalProfile.phone || !finalProfile.acceptedTerms)) {
+        setAuthOpen(true);
       }
 
       await refreshServerListings();
+      void fetchFirestoreListingsOnce()
+        .then((items) => {
+          setFirestoreListings(items);
+          setFirestoreLoaded(true);
+        })
+        .catch(() => {});
+      void fetchDeletedSeedsOnce()
+        .then((ids) => setFirestoreDeletedSeeds(ids))
+        .catch(() => {});
     });
 
     return () => unsubAuth();
@@ -232,7 +273,7 @@ function JobSquadShell() {
       if (document.visibilityState === 'visible') {
         triggerFullSync();
       }
-    }, 15000);
+    }, 10000);
 
     window.addEventListener('focus', handleSyncOnResume);
     window.addEventListener('pageshow', triggerFullSync);
@@ -253,36 +294,63 @@ function JobSquadShell() {
     return Array.from(new Set([...serverDeletedIds, ...firestoreDeletedSeeds]));
   }, [serverDeletedIds, firestoreDeletedSeeds]);
 
-  // One-time-per-session Admin auto-backfill: push any legacy server-only posts & seed deletions into Firestore
+  // One-time-per-session auto-backfill: push any legacy server-only posts & seed deletions into Cloud Firestore
   const backfilledIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!isAdmin || !firebaseUser || !firestoreLoaded) return;
+    if (!firebaseUser || !firebaseUser.emailVerified || !firestoreLoaded) return;
 
     const firestoreIds = new Set(firestoreListings.map((f) => f.id));
     const firestoreDeletedSet = new Set(firestoreDeletedSeeds);
     const combinedDeletedSet = new Set(deletedIds);
 
-    for (const delId of serverDeletedIds) {
-      if (delId.startsWith('seed-') && !firestoreDeletedSet.has(delId) && !backfilledIdsRef.current.has(`del:${delId}`)) {
-        backfilledIdsRef.current.add(`del:${delId}`);
-        void markSeedDeletedDoc(delId).catch(() => {});
+    if (isAdmin) {
+      for (const delId of serverDeletedIds) {
+        if (delId.startsWith('seed-') && !firestoreDeletedSet.has(delId) && !backfilledIdsRef.current.has(`del:${delId}`)) {
+          backfilledIdsRef.current.add(`del:${delId}`);
+          void markSeedDeletedDoc(delId).catch(() => {});
+        }
       }
     }
 
+    const myEmail = (firebaseUser.email || '').trim().toLowerCase();
     for (const srvItem of serverListings) {
       if (
-        !srvItem.firestoreSynced &&
-        !firestoreIds.has(srvItem.id) &&
-        !combinedDeletedSet.has(srvItem.id) &&
-        !backfilledIdsRef.current.has(`up:${srvItem.id}`)
+        srvItem.firestoreSynced ||
+        firestoreIds.has(srvItem.id) ||
+        combinedDeletedSet.has(srvItem.id) ||
+        backfilledIdsRef.current.has(`up:${srvItem.id}`)
       ) {
+        continue;
+      }
+
+      const isMine =
+        srvItem.ownerId === firebaseUser.uid ||
+        legacyUserIds.includes(srvItem.ownerId) ||
+        (myEmail && srvItem.contactEmail?.trim().toLowerCase() === myEmail);
+
+      if (isAdmin) {
         backfilledIdsRef.current.add(`up:${srvItem.id}`);
         void adminUpsertListingDoc(srvItem.id, srvItem)
           .then(() => updateServerListing(srvItem.id, { ...srvItem, firestoreSynced: true }).catch(() => {}))
           .catch(() => {});
+      } else if (isMine) {
+        backfilledIdsRef.current.add(`up:${srvItem.id}`);
+        void userUpsertOwnListingDoc(srvItem.id, srvItem)
+          .then(() => updateServerListing(srvItem.id, { ...srvItem, ownerId: firebaseUser.uid, firestoreSynced: true }).catch(() => {}))
+          .catch(() => {});
       }
     }
-  }, [isAdmin, firebaseUser, firestoreLoaded, firestoreListings, serverListings, serverDeletedIds, firestoreDeletedSeeds, deletedIds]);
+  }, [
+    isAdmin,
+    firebaseUser,
+    legacyUserIds,
+    firestoreLoaded,
+    firestoreListings,
+    serverListings,
+    serverDeletedIds,
+    firestoreDeletedSeeds,
+    deletedIds,
+  ]);
 
   // Merge server-persisted listings, Firestore listings, and seed catalog (respecting admin deletions & newest edits)
   const allListings = useMemo(() => {
@@ -378,7 +446,7 @@ function JobSquadShell() {
   }, [visibleListings]);
 
   const handleOpenPost = (mode: 'job' | 'looking_for_job' = 'job') => {
-    if (!userProfile || !userProfile.phone) {
+    if (!userProfile || !userProfile.phone || (firebaseUser && !firebaseUser.emailVerified)) {
       setPendingPostMode(mode);
       setAuthOpen(true);
       return;
@@ -427,6 +495,7 @@ function JobSquadShell() {
     setFlagLoading(true);
     try {
       const flaggedBy = userProfile?.email || firebaseUser?.email || 'admin';
+      const canUseFirestore = Boolean(firebaseUser && firebaseUser.emailVerified);
       let updatedListing: Listing = {
         ...target,
         flagged,
@@ -435,40 +504,33 @@ function JobSquadShell() {
         flaggedBy: flagged ? flaggedBy : undefined,
         updatedAt: Date.now(),
         isSeeded: false,
-        firestoreSynced: Boolean(firebaseUser),
+        firestoreSynced: canUseFirestore,
       };
 
-      let savedInFirestore = false;
-      if (firebaseUser) {
-        try {
-          await flagListingDoc(
-            target.id,
-            {
-              flagged,
-              flagReason,
-              flaggedBy,
-            },
-            target
-          );
-          savedInFirestore = true;
-        } catch {
-          // Continue with server persistence fallback
-        }
-      }
-
-      try {
+      if (canUseFirestore) {
+        await flagListingDoc(
+          target.id,
+          {
+            flagged,
+            flagReason,
+            flaggedBy,
+          },
+          target
+        );
+        void flagServerListing(target.id, {
+          flagged,
+          flagReason,
+          listingSnapshot: updatedListing,
+        }).catch(() => {});
+      } else {
         updatedListing = await flagServerListing(target.id, {
           flagged,
           flagReason,
           listingSnapshot: updatedListing,
         });
-      } catch (err) {
-        if (!savedInFirestore) {
-          throw err;
-        }
       }
 
-      if (savedInFirestore) {
+      if (canUseFirestore) {
         setFirestoreListings((prev) => {
           const exists = prev.some((item) => item.id === target.id);
           if (exists) {
@@ -496,29 +558,18 @@ function JobSquadShell() {
     const target = pendingDelete;
     const existsInFirestore = firestoreListings.some((f) => f.id === target.id);
     const isSeedId = target.isSeeded || target.id.startsWith('seed-');
+    const canUseFirestore = Boolean(firebaseUser && firebaseUser.emailVerified);
     try {
-      if (firebaseUser) {
+      if (canUseFirestore && firebaseUser) {
         if (isSeedId && isAdmin) {
-          try {
-            await markSeedDeletedDoc(target.id);
-          } catch {
-            // Continue with server tombstone
-          }
+          await markSeedDeletedDoc(target.id);
         }
         if (existsInFirestore && (target.ownerId === firebaseUser.uid || isAdmin)) {
-          try {
-            await deleteListingDoc(target.id);
-          } catch {
-            // Continue with server tombstone
-          }
+          await deleteListingDoc(target.id);
         }
       }
 
-      try {
-        await deleteServerListingById(target.id);
-      } catch {
-        // Ignore if static-only or already absent on server
-      }
+      await deleteServerListingById(target.id).catch(() => {});
 
       setFirestoreListings((prev) => prev.filter((item) => item.id !== target.id));
       if (isSeedId) {
@@ -527,6 +578,8 @@ function JobSquadShell() {
       setServerDeletedIds((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
       setServerListings((prev) => prev.filter((item) => item.id !== target.id));
       setDetailListing((prev) => (prev && prev.id === target.id ? null : prev));
+    } catch (err) {
+      console.error('Failed to delete listing:', err);
     } finally {
       setPendingDelete(null);
     }
@@ -651,6 +704,7 @@ function JobSquadShell() {
           rentalsSubtab={rentalsSubtab}
           onChangeRentalsSubtab={setRentalsSubtab}
           currentUserId={userProfile?.uid || null}
+          legacyUserIds={legacyUserIds}
           isAdmin={isAdmin}
           activeScope={activeScope}
           onClearScope={() => setActiveScope('all')}

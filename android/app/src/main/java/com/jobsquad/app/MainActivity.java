@@ -483,6 +483,15 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        try {
+            CookieManager.getInstance().flush();
+        } catch (Exception ignored) {
+        }
+        super.onPause();
+    }
+
+    @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if (webView != null) {

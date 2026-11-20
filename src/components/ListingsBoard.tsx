@@ -32,6 +32,7 @@ interface ListingsBoardProps {
   rentalsSubtab: 'house' | 'car';
   onChangeRentalsSubtab: (tab: 'house' | 'car') => void;
   currentUserId: string | null;
+  legacyUserIds?: string[];
   isAdmin: boolean;
   activeScope: 'all' | 'mine' | 'admin';
   onClearScope: () => void;
@@ -62,6 +63,7 @@ export function ListingsBoard({
   rentalsSubtab,
   onChangeRentalsSubtab,
   currentUserId,
+  legacyUserIds = [],
   isAdmin,
   activeScope,
   onClearScope,
@@ -150,10 +152,13 @@ export function ListingsBoard({
     }
   };
 
+  const isOwnedByMe = (item: Listing) =>
+    Boolean(currentUserId && (item.ownerId === currentUserId || legacyUserIds.includes(item.ownerId)));
+
   const hasSearch = searchQuery.trim().length > 0;
   const scopedListings = listings.filter((item) => {
     if (activeScope === 'mine' && currentUserId) {
-      if (item.ownerId !== currentUserId) return false;
+      if (!isOwnedByMe(item)) return false;
     }
     return matchesListingSearch(item, searchQuery, lang);
   });
@@ -184,7 +189,7 @@ export function ListingsBoard({
   const canModify = (item: Listing) => {
     if (isAdmin) return true;
     if (item.isSeeded) return false;
-    return Boolean(currentUserId && item.ownerId === currentUserId);
+    return isOwnedByMe(item);
   };
 
   const handleShare = async (item: Listing) => {

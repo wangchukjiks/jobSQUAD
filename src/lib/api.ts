@@ -1037,30 +1037,42 @@ export function compressImageToDataUrl(file: File, maxDimension = 680, quality =
       const img = new Image();
       img.onerror = () => reject(new Error('Invalid image format.'));
       img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDimension || height > maxDimension) {
-          if (width >= height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
+        const renderAt = (dim: number, q: number): string => {
+          let { width, height } = img;
+          if (width > dim || height > dim) {
+            if (width >= height) {
+              height = Math.round((height * dim) / width);
+              width = dim;
+            } else {
+              width = Math.round((width * dim) / height);
+              height = dim;
+            }
           }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas context unavailable.'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        if (dataUrl.length > 220000) {
-          resolve(canvas.toDataURL('image/jpeg', 0.48));
-        } else {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error('Canvas context unavailable.');
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL('image/jpeg', q);
+        };
+
+        try {
+          let dataUrl = renderAt(maxDimension, quality);
+          if (dataUrl.length > 260000) {
+            dataUrl = renderAt(maxDimension, 0.48);
+          }
+          if (dataUrl.length > 260000) {
+            dataUrl = renderAt(480, 0.42);
+          }
+          if (dataUrl.length > 260000) {
+            dataUrl = renderAt(360, 0.35);
+          }
           resolve(dataUrl);
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error('Failed to compress image.'));
         }
       };
       img.src = String(reader.result);
