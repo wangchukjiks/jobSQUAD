@@ -80,7 +80,8 @@ function JobSquadShell() {
       return;
     }
     const canonicalUrl = `${origin}${pathname}`;
-    const cardImageUrl = `${origin}/assets/aistudio/job-squad-logo-1200x630_b504596c.png`;
+    const ogCardImageUrl = `${origin}/assets/jobsquad-og-560x294.png`;
+    const xCardImageUrl = `${origin}/assets/jobsquad-x-400x400.png`;
 
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = canonicalUrl;
@@ -88,9 +89,9 @@ function JobSquadShell() {
     const updates: Array<[string, string]> = [
       ['meta[property="og:url"]', canonicalUrl],
       ['meta[name="twitter:url"]', canonicalUrl],
-      ['meta[property="og:image"]', cardImageUrl],
-      ['meta[property="og:image:secure_url"]', cardImageUrl],
-      ['meta[name="twitter:image"]', cardImageUrl],
+      ['meta[property="og:image"]', ogCardImageUrl],
+      ['meta[property="og:image:secure_url"]', ogCardImageUrl],
+      ['meta[name="twitter:image"]', xCardImageUrl],
     ];
     for (const [selector, content] of updates) {
       const el = document.querySelector<HTMLMetaElement>(selector);
