@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { formatLocalizedPrice, LANGUAGE_OPTIONS, UI_TEXT } from '../i18n/translations.ts';
 import { matchesListingSearch } from '../lib/search.ts';
+import { MobileAppControls } from './MobileAppControls.tsx';
 import type { Listing, SupportedLang, UserProfile } from '../types/index.ts';
 
 interface HeaderProps {
@@ -490,6 +491,9 @@ export function Header({
                 {t.registerLogin}
               </button>
             )}
+            <div className="pt-2 border-t border-slate-800/80">
+              <MobileAppControls lang={lang} compact />
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { UI_TEXT } from '../i18n/translations.ts';
+import { MobileAppControls } from './MobileAppControls.tsx';
 import type { SupportedLang } from '../types/index.ts';
 
 interface FooterProps {
@@ -123,6 +124,7 @@ export function Footer({ lang, onOpenContact, onOpenLegal }: FooterProps) {
                 WhatsApp
               </a>
             </div>
+            <MobileAppControls lang={lang} />
           </div>
         </div>
 

@@ -213,7 +213,12 @@ async function parseJsonSafe<T>(res: Response): Promise<T> {
 
 export async function ensureCsrfToken(forceRefresh = false): Promise<string> {
   if (cachedCsrfToken && !forceRefresh) return cachedCsrfToken;
-  const res = await fetchWithRetry('/api/csrf-token', { credentials: 'include', cache: 'no-store' });
+  let res: Response;
+  try {
+    res = await fetchWithRetry('/api/csrf-token', { credentials: 'include', cache: 'no-store' });
+  } catch {
+    throw new ApiBackendUnavailableError();
+  }
   const data = await parseJsonSafe<{ csrfToken: string }>(res);
   if (!res.ok || !data.csrfToken) {
     throw new Error('Unable to initialize security session.');
@@ -306,7 +311,7 @@ export async function fetchCaptchaChallenge(): Promise<{ question: string; token
     if (!res.ok) throw new Error('Failed to load CAPTCHA');
     return data;
   } catch (err) {
-    if (err instanceof ApiBackendUnavailableError) {
+    if (err instanceof ApiBackendUnavailableError || err instanceof TypeError) {
       return createLocalCaptchaChallenge();
     }
     throw err;
@@ -348,7 +353,7 @@ export async function fetchCurrentAuthUser(): Promise<UserProfile | null> {
     const data = await parseJsonSafe<{ user: UserProfile | null }>(res);
     return data.user || null;
   } catch (err) {
-    if (err instanceof ApiBackendUnavailableError) {
+    if (err instanceof ApiBackendUnavailableError || err instanceof TypeError) {
       return getStaticSession();
     }
     return null;
@@ -756,7 +761,7 @@ export async function fetchServerListings(): Promise<{
     }
     return await parseJsonSafe<{ listings: Listing[]; deletedIds: string[] }>(res);
   } catch (err) {
-    if (err instanceof ApiBackendUnavailableError) {
+    if (err instanceof ApiBackendUnavailableError || err instanceof TypeError) {
       return {
         listings: readLocalJson<Listing[]>(STATIC_LISTINGS_KEY, []),
         deletedIds: readLocalJson<string[]>(STATIC_DELETED_KEY, []),

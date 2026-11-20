@@ -1138,6 +1138,24 @@ async function startServer() {
   }
 
   const distDir = path.resolve(__dirname, 'dist');
+  const publicDownloadsDir = path.resolve(__dirname, 'public', 'downloads');
+  const distDownloadsDir = path.resolve(distDir, 'downloads');
+
+  // Direct Android APK download route (works in both dev and production)
+  app.get('/downloads/JobSQUAD.apk', (_req, res) => {
+    const prodApk = path.join(distDownloadsDir, 'JobSQUAD.apk');
+    const devApk = path.join(publicDownloadsDir, 'JobSQUAD.apk');
+    const apkPath = fs.existsSync(prodApk) ? prodApk : devApk;
+    if (!fs.existsSync(apkPath)) {
+      res.status(404).json({ error: 'Android APK package is not currently available.' });
+      return;
+    }
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Disposition', 'attachment; filename="JobSQUAD.apk"');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.sendFile(apkPath);
+  });
+
   const isProd =
     process.env.NODE_ENV === 'production' ||
     (process.env.NODE_ENV !== 'development' && fs.existsSync(distDir));
@@ -1159,6 +1177,7 @@ async function startServer() {
         reqPath === '/' ||
         (!reqPath.includes('.') &&
           !reqPath.startsWith('/api/') &&
+          !reqPath.startsWith('/downloads/') &&
           !reqPath.startsWith('/@') &&
           !reqPath.startsWith('/src/') &&
           !reqPath.startsWith('/assets/') &&
@@ -1197,7 +1216,12 @@ async function startServer() {
         index: false,
         setHeaders: (res, filePath) => {
           const baseName = path.basename(filePath);
-          if (filePath.endsWith('.html')) {
+          if (
+            filePath.endsWith('.html') ||
+            baseName === 'sw.js' ||
+            baseName === 'manifest.webmanifest' ||
+            /^workbox-.*\.js$/.test(baseName)
+          ) {
             res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
