@@ -80,7 +80,7 @@ function JobSquadShell() {
       return;
     }
     const canonicalUrl = `${origin}${pathname}`;
-    const cardImageUrl = `${origin}/assets/jobsquad-og-card.png`;
+    const cardImageUrl = `${origin}/assets/aistudio/job-squad-logo-1200x630_b504596c.png`;
 
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = canonicalUrl;
