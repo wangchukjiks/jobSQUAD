@@ -4,6 +4,7 @@ import { UI_TEXT } from '../i18n/translations.ts';
 import { fetchCaptchaChallenge, submitContactInquiry } from '../lib/api.ts';
 import type { SupportedLang } from '../types/index.ts';
 import { CaptchaField } from './CaptchaField.tsx';
+import { PhoneInput } from './PhoneInput.tsx';
 
 interface ContactModalProps {
   open: boolean;
@@ -250,13 +251,7 @@ export function ContactModal({ open, lang, onClose }: ContactModalProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-300">{t.contactModal.phone}</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+33 7 59 16 31 33"
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 font-mono-num focus:outline-none focus:border-[#D9A438]"
-                  />
+                  <PhoneInput value={phone} onChange={setPhone} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-300">{t.contactModal.subject}</label>

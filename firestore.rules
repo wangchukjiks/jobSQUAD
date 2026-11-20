@@ -157,7 +157,7 @@ service cloud.firestore {
             )
           )
         );
-      allow delete: if isAdmin() && isValidId(userId);
+      allow delete: if isVerifiedUser() && isValidId(userId) && (isOwner(userId) || isAdmin());
     }
 
     // Trusted Admin Registry (read-only from client)

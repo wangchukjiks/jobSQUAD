@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { formatLocalizedPrice, formatPostDateTime, UI_TEXT } from '../i18n/translations.ts';
+import { formatPhoneNumber } from '../lib/phone.ts';
 import { matchesListingSearch } from '../lib/search.ts';
 import type { Listing, SupportedLang } from '../types/index.ts';
 import { ImageSlider } from './ImageSlider.tsx';
@@ -380,7 +381,7 @@ export function ListingsBoard({
             <div className="flex flex-col gap-5">
               {jobListings.map((item) => {
                 const loc = getLocalized(item);
-                const phoneDisplay = item.contactPhone || '+33 759163133';
+                const phoneDisplay = formatPhoneNumber(item.contactPhone || '+33 7 59 16 31 33');
                 const isLookingForJobPost = item.category === 'looking_for_job';
                 const categoryLabel = t.categories[item.category] || item.category;
                 const restaurantLabel =
@@ -640,6 +641,17 @@ export function ListingsBoard({
                           {loc.title}
                         </h3>
 
+                        <p className="inline-flex items-center gap-1.5 text-xs text-slate-300">
+                          <MapPin className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
+                          <span>{loc.location}</span>
+                        </p>
+
+                        <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
+                          {loc.description}
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                           <span className="inline-flex items-center gap-1.5">
                             <UserIcon className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
@@ -652,21 +664,13 @@ export function ListingsBoard({
                           </span>
                           <span className="inline-flex items-center gap-1.5 font-mono-num">
                             <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span>{formatPostDateTime(item.createdAt, lang)}</span>
+                            <span>
+                              {t.specsLabels.postedAt}: {formatPostDateTime(item.createdAt, lang)}
+                            </span>
                           </span>
                         </div>
 
-                        <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span>{loc.location}</span>
-                        </p>
-
-                        <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
-                          {loc.description}
-                        </p>
-                      </div>
-
-                      <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                        <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -721,6 +725,7 @@ export function ListingsBoard({
                             </button>
                           </div>
                         )}
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -794,6 +799,17 @@ export function ListingsBoard({
                           {loc.title}
                         </h3>
 
+                        <p className="inline-flex items-center gap-1.5 text-xs text-slate-300">
+                          <MapPin className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
+                          <span>{loc.location}</span>
+                        </p>
+
+                        <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
+                          {loc.description}
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                           <span className="inline-flex items-center gap-1.5">
                             <UserIcon className="w-3.5 h-3.5 text-[#D9A438]/85 shrink-0" />
@@ -806,21 +822,13 @@ export function ListingsBoard({
                           </span>
                           <span className="inline-flex items-center gap-1.5 font-mono-num">
                             <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span>{formatPostDateTime(item.createdAt, lang)}</span>
+                            <span>
+                              {t.specsLabels.postedAt}: {formatPostDateTime(item.createdAt, lang)}
+                            </span>
                           </span>
                         </div>
 
-                        <p className="inline-flex items-center gap-1.5 text-xs text-slate-400">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          <span>{loc.location}</span>
-                        </p>
-
-                        <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
-                          {loc.description}
-                        </p>
-                      </div>
-
-                      <div className="pt-4 border-t border-slate-800/80 space-y-2.5">
+                        <div className="pt-4 border-t border-slate-800/80 space-y-2.5">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -875,6 +883,7 @@ export function ListingsBoard({
                             </button>
                           </div>
                         )}
+                        </div>
                       </div>
                     </div>
                   </article>

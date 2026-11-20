@@ -23,7 +23,9 @@ import {
   adminUpdateUserProfile,
   listAllUserProfiles,
 } from '../lib/firebase.ts';
+import { formatPhoneNumber } from '../lib/phone.ts';
 import type { AccountType, SupportedLang, UserProfile } from '../types/index.ts';
+import { PhoneInput } from './PhoneInput.tsx';
 
 interface AdminUsersPanelProps {
   lang: SupportedLang;
@@ -34,10 +36,15 @@ interface AdminUsersPanelProps {
   onBackToAll?: () => void;
 }
 
-type UserSource = 'firestore' | 'server';
+type UserSource = 'firestore' | 'server' | 'synced';
 
 interface ManagedUserRecord extends UserProfile {
   source: UserSource;
+  hasFirestore?: boolean;
+  firestoreUid?: string;
+  hasServer?: boolean;
+  serverUid?: string;
+  authProvider?: 'local' | 'google';
   createdAt?: number;
   updatedAt?: number;
 }
@@ -86,15 +93,55 @@ export function AdminUsersPanel({
         firebaseUser ? listAllUserProfiles() : Promise.resolve([]),
       ]);
 
-      const merged: ManagedUserRecord[] = [];
-      if (firestoreResult.status === 'fulfilled') {
-        for (const u of firestoreResult.value) {
-          merged.push({ ...u, source: 'firestore' });
-        }
-      }
+      const byEmail = new Map<string, ManagedUserRecord>();
+
       if (serverResult.status === 'fulfilled') {
         for (const u of serverResult.value) {
-          merged.push({ ...u, source: 'server' });
+          const srv = u as typeof u & { authProvider?: 'local' | 'google' };
+          const key = (srv.email || srv.uid).trim().toLowerCase();
+          byEmail.set(key, {
+            ...srv,
+            phone: srv.phone ? formatPhoneNumber(srv.phone) : '',
+            source: 'server',
+            hasServer: true,
+            serverUid: srv.uid,
+            authProvider: srv.authProvider || 'local',
+          });
+        }
+      }
+
+      if (firestoreResult.status === 'fulfilled') {
+        for (const u of firestoreResult.value) {
+          const key = (u.email || u.uid).trim().toLowerCase();
+          const existing = byEmail.get(key);
+          if (existing) {
+            byEmail.set(key, {
+              ...existing,
+              displayName: u.displayName || existing.displayName,
+              phone: formatPhoneNumber(u.phone || existing.phone || ''),
+              accountType: u.accountType || existing.accountType,
+              acceptedTerms: Boolean(existing.acceptedTerms || u.acceptedTerms || existing.isAdmin || u.isAdmin),
+              acceptedTermsAt: existing.acceptedTermsAt || u.acceptedTermsAt,
+              isAdmin: Boolean(existing.isAdmin || u.isAdmin),
+              source: 'synced',
+              hasFirestore: true,
+              firestoreUid: u.uid,
+              hasServer: true,
+              serverUid: existing.serverUid,
+              authProvider: existing.authProvider || 'google',
+              createdAt: existing.createdAt || u.createdAt,
+              updatedAt: u.updatedAt || existing.updatedAt,
+            });
+          } else {
+            byEmail.set(key, {
+              ...u,
+              phone: u.phone ? formatPhoneNumber(u.phone) : '',
+              source: 'firestore',
+              hasFirestore: true,
+              firestoreUid: u.uid,
+              authProvider: 'google',
+            });
+          }
         }
       }
 
@@ -105,6 +152,7 @@ export function AdminUsersPanel({
         setLoadError('Failed to load user records.');
       }
 
+      const merged = Array.from(byEmail.values());
       merged.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setUsers(merged);
     } catch (err: unknown) {
@@ -163,7 +211,7 @@ export function AdminUsersPanel({
     setEditingUser(u);
     setEditName(u.displayName);
     setEditEmail(u.email);
-    setEditPhone(u.phone);
+    setEditPhone(u.phone ? formatPhoneNumber(u.phone) : '');
     setEditRole(u.accountType);
     setEditNewPassword('');
     setEditError('');
@@ -175,7 +223,7 @@ export function AdminUsersPanel({
 
     const trimmedName = editName.trim();
     const trimmedEmail = editEmail.trim().toLowerCase();
-    const trimmedPhone = editPhone.trim();
+    const trimmedPhone = formatPhoneNumber(editPhone.trim());
 
     if (!trimmedName || !trimmedEmail || !trimmedEmail.includes('@')) {
       setEditError('Please provide a valid display name and email address.');
@@ -183,7 +231,7 @@ export function AdminUsersPanel({
     }
 
     if (
-      editingUser.source === 'server' &&
+      editingUser.hasServer &&
       editNewPassword.trim().length > 0 &&
       editNewPassword.trim().length < 8
     ) {
@@ -195,24 +243,26 @@ export function AdminUsersPanel({
     setEditError('');
 
     try {
-      let updatedRecord: ManagedUserRecord;
-      if (editingUser.source === 'firestore') {
-        await adminUpdateUserProfile(editingUser.uid, {
+      let updatedRecord: ManagedUserRecord = {
+        ...editingUser,
+        displayName: trimmedName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
+        accountType: editRole,
+        updatedAt: Date.now(),
+      };
+
+      if (editingUser.hasFirestore && firebaseUser && editingUser.firestoreUid) {
+        await adminUpdateUserProfile(editingUser.firestoreUid, {
           displayName: trimmedName,
           email: trimmedEmail,
           phone: trimmedPhone,
           accountType: editRole,
         });
-        updatedRecord = {
-          ...editingUser,
-          displayName: trimmedName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-          accountType: editRole,
-          updatedAt: Date.now(),
-        };
-      } else {
-        const saved = await updateServerAdminUser(editingUser.uid, {
+      }
+
+      if (editingUser.hasServer && editingUser.serverUid) {
+        const saved = await updateServerAdminUser(editingUser.serverUid, {
           displayName: trimmedName,
           email: trimmedEmail,
           phone: trimmedPhone,
@@ -220,22 +270,26 @@ export function AdminUsersPanel({
           ...(editNewPassword.trim().length >= 8 ? { newPassword: editNewPassword.trim() } : {}),
         });
         updatedRecord = {
-          ...editingUser,
+          ...updatedRecord,
           ...saved,
-          source: 'server',
           updatedAt: Date.now(),
         };
       }
 
       setUsers((prev) =>
         prev.map((item) =>
-          item.uid === updatedRecord.uid && item.source === updatedRecord.source
+          item.uid === editingUser.uid && item.email === editingUser.email
             ? updatedRecord
             : item
         )
       );
 
-      if (currentUser && currentUser.uid === updatedRecord.uid && onCurrentUserUpdated) {
+      if (
+        currentUser &&
+        (currentUser.uid === updatedRecord.uid ||
+          currentUser.email.toLowerCase() === updatedRecord.email.toLowerCase()) &&
+        onCurrentUserUpdated
+      ) {
         onCurrentUserUpdated({
           ...currentUser,
           displayName: updatedRecord.displayName,
@@ -259,14 +313,15 @@ export function AdminUsersPanel({
     setDeleteLoading(true);
     setDeleteError('');
     try {
-      if (deletingUser.source === 'firestore') {
-        await adminDeleteUserProfile(deletingUser.uid);
-      } else {
-        await deleteServerAdminUser(deletingUser.uid);
+      if (deletingUser.hasFirestore && firebaseUser && deletingUser.firestoreUid) {
+        await adminDeleteUserProfile(deletingUser.firestoreUid);
+      }
+      if (deletingUser.hasServer && deletingUser.serverUid) {
+        await deleteServerAdminUser(deletingUser.serverUid);
       }
       setUsers((prev) =>
         prev.filter(
-          (item) => !(item.uid === deletingUser.uid && item.source === deletingUser.source)
+          (item) => !(item.uid === deletingUser.uid && item.email === deletingUser.email)
         )
       );
       setDeletingUser(null);
@@ -416,8 +471,8 @@ export function AdminUsersPanel({
                           </div>
                         </td>
                         <td className="py-3 px-4 text-slate-300">{u.email}</td>
-                        <td className="py-3 px-4 text-slate-300 tabular-nums">
-                          {u.phone || '—'}
+                        <td className="py-3 px-4 text-slate-300 tabular-nums whitespace-nowrap">
+                          {u.phone ? formatPhoneNumber(u.phone) : '—'}
                         </td>
                         <td className="py-3 px-4 text-slate-300">
                           {roleLabel(u.accountType)}
@@ -425,12 +480,18 @@ export function AdminUsersPanel({
                         <td className="py-3 px-4">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border ${
-                              u.source === 'firestore'
+                              u.source === 'firestore' || u.source === 'synced' || u.authProvider === 'google'
                                 ? 'bg-sky-950/60 border-sky-500/30 text-sky-300'
                                 : 'bg-slate-800 border-slate-700 text-slate-300'
                             }`}
                           >
-                            {u.source === 'firestore' ? au.sourceFirestore : au.sourceServer}
+                            {u.source === 'firestore'
+                              ? au.sourceFirestore
+                              : u.source === 'synced'
+                                ? `${au.sourceFirestore} + ${au.sourceServer}`
+                                : u.authProvider === 'google'
+                                  ? `Google · ${au.sourceServer}`
+                                  : au.sourceServer}
                           </span>
                         </td>
                         <td className="py-3 px-4">
@@ -501,19 +562,27 @@ export function AdminUsersPanel({
                       </div>
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-medium border shrink-0 ${
-                          u.source === 'firestore'
+                          u.source === 'firestore' || u.source === 'synced' || u.authProvider === 'google'
                             ? 'bg-sky-950/60 border-sky-500/30 text-sky-300'
                             : 'bg-slate-800 border-slate-700 text-slate-300'
                         }`}
                       >
-                        {u.source === 'firestore' ? au.sourceFirestore : au.sourceServer}
+                        {u.source === 'firestore'
+                          ? au.sourceFirestore
+                          : u.source === 'synced'
+                            ? `${au.sourceFirestore} + ${au.sourceServer}`
+                            : u.authProvider === 'google'
+                              ? `Google · ${au.sourceServer}`
+                              : au.sourceServer}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-slate-400">
                       <div>
                         <span className="text-slate-500">{au.colPhone}: </span>
-                        <span className="text-slate-200">{u.phone || '—'}</span>
+                        <span className="text-slate-200">
+                          {u.phone ? formatPhoneNumber(u.phone) : '—'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-slate-500">{au.colRole}: </span>
@@ -616,12 +685,7 @@ export function AdminUsersPanel({
                 <label className="block text-xs font-medium text-slate-300 mb-1">
                   {t.authModal.phone}
                 </label>
-                <input
-                  type="tel"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-lg bg-[#081325] border border-slate-700 text-sm text-white focus:border-[#D9A438] focus:outline-none"
-                />
+                <PhoneInput value={editPhone} onChange={setEditPhone} />
               </div>
 
               <div>
@@ -639,7 +703,7 @@ export function AdminUsersPanel({
                 </select>
               </div>
 
-              {editingUser.source === 'server' && (
+              {editingUser.hasServer && editingUser.authProvider !== 'google' && (
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
                     {au.newPasswordLabel}

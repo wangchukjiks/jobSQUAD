@@ -663,7 +663,7 @@ export const SEED_LISTINGS: Listing[] = [
     location: 'Zurich / Geneva / Paris Pickup',
     priceEur: 68,
     contactEmail: 'rent@alpinemobility.example.org',
-    contactPhone: '+41 44 580 29 14',
+    contactPhone: '+41 4 45 80 29 14',
     images: ['/src/assets/images/car_compact_suv_1795026730322.jpg'],
     specs: {
       year: 2024,

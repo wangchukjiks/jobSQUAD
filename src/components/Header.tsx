@@ -118,7 +118,7 @@ export function Header({
               className="inline-flex items-center gap-1.5 text-slate-200 hover:text-[#D9A438] transition-colors font-mono-num whitespace-nowrap shrink-0 font-medium"
             >
               <Phone className="w-3.5 h-3.5 text-[#D9A438]" />
-              <span>+33 759163133</span>
+              <span>+33 7 59 16 31 33</span>
             </a>
           </div>
 

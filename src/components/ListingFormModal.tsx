@@ -10,6 +10,7 @@ import {
   verifyCaptchaAnswer,
 } from '../lib/api.ts';
 import { auth, createListingDoc, updateListingDoc } from '../lib/firebase.ts';
+import { formatPhoneNumber } from '../lib/phone.ts';
 import type {
   Listing,
   ListingSpecs,
@@ -19,6 +20,7 @@ import type {
   UserProfile,
 } from '../types/index.ts';
 import { CaptchaField } from './CaptchaField.tsx';
+import { PhoneInput } from './PhoneInput.tsx';
 
 interface ListingFormModalProps {
   open: boolean;
@@ -138,7 +140,7 @@ export function ListingFormModal({
           : ''
       );
       setContactEmail(editingListing.contactEmail);
-      setContactPhone(editingListing.contactPhone);
+      setContactPhone(formatPhoneNumber(editingListing.contactPhone));
       setDescription(editingListing.description);
       setImages(editingListing.type === 'job' ? [] : editingListing.images || []);
       setBedrooms(String(editingListing.specs?.bedrooms ?? 2));
@@ -160,7 +162,7 @@ export function ListingFormModal({
       setEmploymentType('Full-Time');
       setRestaurantName('');
       setContactEmail(user?.email || '');
-      setContactPhone(user?.phone || '');
+      setContactPhone(user?.phone ? formatPhoneNumber(user.phone) : '');
       setDescription('');
       setImages([]);
       setBedrooms('2');
@@ -328,7 +330,7 @@ export function ListingFormModal({
       const cleanDescription = description.trim();
       const cleanLocation = location.trim();
       const cleanEmail = contactEmail.trim();
-      const cleanPhone = contactPhone.trim();
+      const cleanPhone = formatPhoneNumber(contactPhone.trim());
       const cleanImages = isJob ? [] : images;
       const cleanPrice = isJob ? 0 : Number(priceEur) || 0;
 
@@ -627,15 +629,7 @@ export function ListingFormModal({
               <label className="text-xs font-medium text-slate-300">
                 {t.listingModal.phoneLabel} <span className="text-[#D9A438]">*</span>
               </label>
-              <input
-                type="tel"
-                required
-                minLength={6}
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="+33 6 00 00 00 00"
-                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0A1527] border border-slate-700 text-sm text-slate-100 font-mono-num focus:outline-none focus:border-[#D9A438]"
-              />
+              <PhoneInput value={contactPhone} onChange={setContactPhone} required />
             </div>
           </div>
 

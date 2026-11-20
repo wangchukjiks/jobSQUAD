@@ -5,6 +5,12 @@ import type {
   TranslationBundle,
   UserProfile,
 } from '../types/index.ts';
+import {
+  buildSmartCatalogReply,
+  type ChatbotHistoryItem,
+  type ChatbotStats,
+} from './chatbotEngine.ts';
+import { formatPhoneNumber } from './phone.ts';
 
 let cachedCsrfToken: string | null = null;
 const SESSION_TOKEN_STORAGE_KEY = 'jobsquad_srv_session_token_v1';
@@ -72,17 +78,41 @@ function writeLocalJson(key: string, value: unknown): void {
 
 function getStaticUsers(): StaticStoredUser[] {
   const existing = readLocalJson<StaticStoredUser[]>(STATIC_USERS_KEY, []);
-  const hasAdmin = existing.some((u) => u.email.toLowerCase() === 'wangchukjiks@gmail.com');
-  if (!hasAdmin) {
+  let dirty = false;
+  const adminIdx = existing.findIndex((u) => u.email.toLowerCase() === 'wangchukjiks@gmail.com');
+  if (adminIdx < 0) {
     existing.unshift({
       uid: 'admin_wangchukjiks',
       email: 'wangchukjiks@gmail.com',
       displayName: 'JobSQUAD Administrator',
-      phone: '+33 759163133',
+      phone: '+33 7 59 16 31 33',
       accountType: 'employer',
+      acceptedTerms: true,
+      acceptedTermsAt: Date.now(),
       isAdmin: true,
       passwordHash: ADMIN_PASS_SHA256,
     });
+    dirty = true;
+  } else {
+    const admin = existing[adminIdx];
+    if (!admin.acceptedTerms) {
+      admin.acceptedTerms = true;
+      admin.acceptedTermsAt = admin.acceptedTermsAt || Date.now();
+      dirty = true;
+    }
+    if (!admin.isAdmin) {
+      admin.isAdmin = true;
+      dirty = true;
+    }
+    if (admin.phone) {
+      const formattedAdminPhone = formatPhoneNumber(admin.phone);
+      if (formattedAdminPhone && formattedAdminPhone !== admin.phone) {
+        admin.phone = formattedAdminPhone;
+        dirty = true;
+      }
+    }
+  }
+  if (dirty) {
     writeLocalJson(STATIC_USERS_KEY, existing);
   }
   return existing;
@@ -362,7 +392,7 @@ export async function registerWithDetails(input: {
       uid: `usr_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
       displayName: input.displayName.trim(),
       email: cleanEmail,
-      phone: input.phone.trim(),
+      phone: formatPhoneNumber(input.phone.trim()),
       accountType: input.accountType,
       acceptedTerms: true,
       acceptedTermsAt: now,
@@ -411,8 +441,10 @@ export async function loginWithCredentials(input: {
       uid: match.uid,
       displayName: match.displayName,
       email: match.email,
-      phone: match.phone,
+      phone: formatPhoneNumber(match.phone),
       accountType: match.accountType,
+      acceptedTerms: Boolean(match.acceptedTerms || match.isAdmin),
+      acceptedTermsAt: match.acceptedTermsAt,
       isAdmin: Boolean(match.isAdmin),
     };
     setStaticSession(profile);
@@ -420,17 +452,146 @@ export async function loginWithCredentials(input: {
   }
 }
 
-export async function syncFirebaseSession(idToken: string): Promise<void> {
+export async function updateMyProfile(input: {
+  displayName: string;
+  phone: string;
+  accountType: AccountType;
+}): Promise<UserProfile> {
+  const formattedPhone = formatPhoneNumber(input.phone.trim());
   try {
-    const res = await postProtected<{ ok: boolean; sessionToken?: string }>(
+    const res = await requestProtected<{ user: UserProfile; sessionToken?: string }>('PUT', '/api/auth/me', {
+      displayName: input.displayName.trim(),
+      phone: formattedPhone,
+      accountType: input.accountType,
+    });
+    if (res.sessionToken) writeStoredSessionToken(res.sessionToken);
+    return res.user;
+  } catch (err) {
+    if (!(err instanceof ApiBackendUnavailableError)) throw err;
+    const session = getStaticSession();
+    if (!session) throw new Error('Authentication required.');
+    const users = getStaticUsers();
+    const idx = users.findIndex((u) => u.uid === session.uid);
+    const updatedUser: UserProfile = {
+      ...session,
+      displayName: input.displayName.trim(),
+      phone: formattedPhone,
+      accountType: input.accountType,
+      acceptedTerms: true,
+      acceptedTermsAt: session.acceptedTermsAt || Date.now(),
+    };
+    if (idx >= 0) {
+      users[idx] = {
+        ...users[idx],
+        ...updatedUser,
+      };
+      writeLocalJson(STATIC_USERS_KEY, users);
+    }
+    setStaticSession(updatedUser);
+    return updatedUser;
+  }
+}
+
+export async function deleteMyAccount(): Promise<void> {
+  try {
+    await requestProtected<{ ok: boolean }>('DELETE', '/api/auth/me');
+    writeStoredSessionToken(null);
+    setStaticSession(null);
+  } catch (err) {
+    if (!(err instanceof ApiBackendUnavailableError)) {
+      throw err;
+    }
+    const session = getStaticSession();
+    if (!session) throw new Error('Authentication required.');
+    if (session.email.toLowerCase() === 'wangchukjiks@gmail.com') {
+      throw new Error('Primary administrator account cannot be deleted.');
+    }
+    const users = getStaticUsers().filter((u) => u.uid !== session.uid);
+    writeLocalJson(STATIC_USERS_KEY, users);
+    const listings = readLocalJson<Listing[]>(STATIC_LISTINGS_KEY, []).filter(
+      (item) => item.ownerId !== session.uid
+    );
+    writeLocalJson(STATIC_LISTINGS_KEY, listings);
+    writeStoredSessionToken(null);
+    setStaticSession(null);
+  }
+}
+
+export async function syncFirebaseSession(
+  idToken: string,
+  profile?: {
+    uid?: string;
+    email?: string;
+    displayName?: string;
+    phone?: string;
+    accountType?: AccountType;
+    acceptedTerms?: boolean;
+  }
+): Promise<UserProfile | null> {
+  try {
+    const res = await postProtected<{ ok: boolean; sessionToken?: string; user?: UserProfile }>(
       '/api/auth/firebase-session',
-      { idToken }
+      { idToken, profile }
     );
     if (res.sessionToken) {
       writeStoredSessionToken(res.sessionToken);
     }
+    return res.user || null;
   } catch (err) {
     if (!(err instanceof ApiBackendUnavailableError)) throw err;
+
+    if (profile?.email) {
+      const cleanEmail = profile.email.trim().toLowerCase();
+      const users = getStaticUsers();
+      const idx = users.findIndex(
+        (u) => (profile.uid && u.uid === profile.uid) || u.email.toLowerCase() === cleanEmail
+      );
+      const formattedPhone = profile.phone ? formatPhoneNumber(profile.phone.trim()) : '';
+      const isAdminEmail = cleanEmail === 'wangchukjiks@gmail.com';
+      const now = Date.now();
+      if (idx >= 0) {
+        const existing = users[idx];
+        const nextAccepted = Boolean(
+          existing.acceptedTerms || profile.acceptedTerms || isAdminEmail
+        );
+        users[idx] = {
+          ...existing,
+          displayName: profile.displayName?.trim() || existing.displayName,
+          phone: formattedPhone || existing.phone,
+          accountType: profile.accountType || existing.accountType,
+          acceptedTerms: nextAccepted,
+          acceptedTermsAt: nextAccepted ? existing.acceptedTermsAt || now : existing.acceptedTermsAt,
+          isAdmin: Boolean(existing.isAdmin || isAdminEmail),
+        };
+      } else {
+        users.push({
+          uid: profile.uid || `usr_${now.toString(36)}`,
+          displayName: profile.displayName?.trim() || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          phone: formattedPhone,
+          accountType: profile.accountType || 'employer',
+          acceptedTerms: Boolean(profile.acceptedTerms || isAdminEmail),
+          acceptedTermsAt: profile.acceptedTerms || isAdminEmail ? now : undefined,
+          isAdmin: isAdminEmail,
+          passwordHash: '',
+        });
+      }
+      writeLocalJson(STATIC_USERS_KEY, users);
+      const stored = users.find((u) => u.email.toLowerCase() === cleanEmail);
+      if (stored) {
+        return {
+          uid: stored.uid,
+          displayName: stored.displayName,
+          email: stored.email,
+          phone: stored.phone,
+          accountType: stored.accountType,
+          acceptedTerms: stored.acceptedTerms,
+          acceptedTermsAt: stored.acceptedTermsAt,
+          isAdmin: stored.isAdmin,
+        };
+      }
+    }
+    return null;
   }
 }
 
@@ -530,7 +691,7 @@ export async function updateServerAdminUser(
       ...users[idx],
       displayName: updates.displayName.trim(),
       email: nextEmail,
-      phone: updates.phone.trim(),
+      phone: updates.phone.trim() ? formatPhoneNumber(updates.phone.trim()) : '',
       accountType: updates.accountType,
       isAdmin: users[idx].isAdmin || nextEmail === 'wangchukjiks@gmail.com',
       passwordHash: nextPasswordHash,
@@ -625,7 +786,7 @@ export async function saveServerListing(listing: Partial<Listing>): Promise<List
       location: String(listing.location || '').trim(),
       priceEur: listing.type === 'job' ? 0 : Number(listing.priceEur) || 0,
       contactEmail: listing.contactEmail || session.email,
-      contactPhone: String(listing.contactPhone || '').trim(),
+      contactPhone: formatPhoneNumber(String(listing.contactPhone || '').trim()),
       images: listing.type === 'job' ? [] : listing.images || [],
       specs: listing.specs || {},
       translations: listing.translations || ({} as Listing['translations']),
@@ -724,16 +885,50 @@ export async function translateListingViaServer(input: {
 export async function sendAssistantMessage(input: {
   message: string;
   language: SupportedLang;
-  stats: {
-    jobs: number;
-    houses: number;
-    cars: number;
-    sales: number;
-    total: number;
-    categories: Record<string, number>;
-  };
+  stats: ChatbotStats;
+  listings?: Listing[];
+  history?: ChatbotHistoryItem[];
 }): Promise<{ reply: string; mode: 'gemini' | 'live-fallback' }> {
-  return postProtected('/api/chat', input);
+  const listings = input.listings || [];
+  const compactListings = listings.slice(0, 60).map((item) => ({
+    id: item.id,
+    type: item.type,
+    category: item.category,
+    title: item.title,
+    description: item.description.slice(0, 260),
+    location: item.location,
+    priceEur: item.priceEur,
+    contactPhone: item.contactPhone,
+    ownerName: item.ownerName,
+    specs: item.specs,
+    translations: item.translations
+      ? {
+          [input.language]: item.translations[input.language],
+          en: item.translations.en,
+        }
+      : undefined,
+  }));
+
+  try {
+    return await postProtected('/api/chat', {
+      message: input.message,
+      language: input.language,
+      stats: input.stats,
+      listings: compactListings,
+      history: (input.history || []).slice(-8),
+    });
+  } catch {
+    return {
+      reply: buildSmartCatalogReply({
+        message: input.message,
+        language: input.language,
+        stats: input.stats,
+        listings,
+        history: input.history,
+      }),
+      mode: 'live-fallback',
+    };
+  }
 }
 
 export async function submitContactInquiry(input: {

@@ -52,7 +52,7 @@ export function Footer({ lang, onOpenContact, onOpenLegal }: FooterProps) {
                   className="inline-flex items-center gap-2 font-mono-num hover:text-[#D9A438] transition-colors"
                 >
                   <Phone className="w-4 h-4 text-[#D9A438] shrink-0" />
-                  <span>+33 759163133</span>
+                  <span>+33 7 59 16 31 33</span>
                 </a>
               </li>
               <li className="inline-flex items-start gap-2 text-slate-400">

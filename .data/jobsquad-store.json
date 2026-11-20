@@ -4,12 +4,15 @@
       "uid": "admin_wangchukjiks",
       "email": "wangchukjiks@gmail.com",
       "displayName": "JobSQUAD Administrator",
-      "phone": "+33 759163133",
+      "phone": "+33 7 59 16 31 33",
       "accountType": "employer",
       "isAdmin": true,
       "passwordSalt": "cd884c01104c6ab57304b2a2e2a99be7",
       "passwordHash": "c7b79b31a36d7d9a568c4354eb79e132dbb6707dcfa24c692e2abe440f89d52961fa0bfa5aaa957bc18a182e36b49f99790fe26dd5d62a7610eab710fe3880b7",
-      "createdAt": 1795029268915
+      "createdAt": 1795029268915,
+      "acceptedTerms": true,
+      "acceptedTermsAt": 1795029268915,
+      "authProvider": "local"
     }
   ],
   "listings": [],

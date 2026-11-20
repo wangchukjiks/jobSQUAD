@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Check, CheckCircle2, Copy, ExternalLink, Flag, Mail, MapPin, Phone, Send, Share2, Trash2, X } from 'lucide-react';
 import { formatLocalizedPrice, formatPostDateTime, UI_TEXT } from '../i18n/translations.ts';
 import { fetchCaptchaChallenge, sendListingInquiry } from '../lib/api.ts';
+import { formatPhoneNumber } from '../lib/phone.ts';
 import type { Listing, SupportedLang, UserProfile } from '../types/index.ts';
 import { CaptchaField } from './CaptchaField.tsx';
 import { ImageSlider } from './ImageSlider.tsx';
+import { PhoneInput } from './PhoneInput.tsx';
 
 interface ListingDetailModalProps {
   listing: Listing | null;
@@ -57,7 +59,7 @@ export function ListingDetailModal({
     setCaptchaAnswer('');
     setSenderName(currentUser?.displayName || '');
     setSenderEmail(currentUser?.email || '');
-    setSenderPhone(currentUser?.phone || '');
+    setSenderPhone(currentUser?.phone ? formatPhoneNumber(currentUser.phone) : '');
     if (listing) {
       const tr = listing.translations?.[lang];
       const localizedTitle = tr?.title || listing.title;
@@ -110,7 +112,7 @@ export function ListingDetailModal({
       setDeliveryNote('');
       if (!senderName && currentUser?.displayName) setSenderName(currentUser.displayName);
       if (!senderEmail && currentUser?.email) setSenderEmail(currentUser.email);
-      if (!senderPhone && currentUser?.phone) setSenderPhone(currentUser.phone);
+      if (!senderPhone && currentUser?.phone) setSenderPhone(formatPhoneNumber(currentUser.phone));
     }
   };
 
@@ -396,11 +398,11 @@ export function ListingDetailModal({
                 <div className="space-y-0.5">
                   <p className="text-xs text-slate-400">{mobileLabel}</p>
                   <div
-                    aria-label={`${mobileLabel}: ${listing.contactPhone}`}
+                    aria-label={`${mobileLabel}: ${formatPhoneNumber(listing.contactPhone || '+33 7 59 16 31 33')}`}
                     className="inline-flex items-center gap-2 text-base font-bold font-mono-num text-[#D9A438] select-text"
                   >
                     <Phone className="w-4 h-4 shrink-0" />
-                    <span>{listing.contactPhone}</span>
+                    <span>{formatPhoneNumber(listing.contactPhone || '+33 7 59 16 31 33')}</span>
                   </div>
                 </div>
               </div>
@@ -579,13 +581,7 @@ export function ListingDetailModal({
                       <label className="text-xs font-medium text-slate-300">
                         {t.contactModal.phone}
                       </label>
-                      <input
-                        type="tel"
-                        value={senderPhone}
-                        onChange={(e) => setSenderPhone(e.target.value)}
-                        placeholder="+33 7 59 16 31 33"
-                        className="w-full px-3 py-2 rounded-lg bg-[#0F1D33] border border-slate-700 text-sm text-slate-100 font-mono-num focus:outline-none focus:border-[#D9A438]"
-                      />
+                      <PhoneInput value={senderPhone} onChange={setSenderPhone} />
                     </div>
 
                     <div className="space-y-1">

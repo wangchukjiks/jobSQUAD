@@ -22,7 +22,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: 'Privacy Policy (GDPR)',
     effectiveLabel: 'Effective under European Union (GDPR & DSA) and French Law',
     controllerBadge:
-      'Operator & Data Controller: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      'Operator & Data Controller: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '1. Scope & Role of JobSQUAD',
@@ -70,7 +70,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
       {
         title: '1. Data Controller Identity (GDPR Art. 13)',
         paragraphs: [
-          'The Data Controller responsible for processing personal data on JobSQUAD is JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France (Email: contact.jobsquad@gmail.com, Phone: +33 759163133).',
+          'The Data Controller responsible for processing personal data on JobSQUAD is JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France (Email: contact.jobsquad@gmail.com, Phone: +33 7 59 16 31 33).',
         ],
       },
       {
@@ -118,7 +118,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: 'Politique de confidentialité (RGPD)',
     effectiveLabel: 'Conforme au droit de l’Union européenne (RGPD & DSA) et au droit français',
     controllerBadge:
-      'Éditeur & Responsable de traitement : JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      'Éditeur & Responsable de traitement : JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '1. Objet et rôle d’intermédiaire de JobSQUAD',
@@ -165,7 +165,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
       {
         title: '1. Responsable du traitement (Art. 13 RGPD)',
         paragraphs: [
-          'Responsable du traitement : JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France (contact.jobsquad@gmail.com, +33 759163133).',
+          'Responsable du traitement : JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France (contact.jobsquad@gmail.com, +33 7 59 16 31 33).',
         ],
       },
       {
@@ -212,7 +212,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: 'Política de Privacidad (RGPD)',
     effectiveLabel: 'Conforme al Derecho de la Unión Europea (RGPD y DSA) y legislación francesa',
     controllerBadge:
-      'Operador y Responsable: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      'Operador y Responsable: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '1. Alcance y función de JobSQUAD',
@@ -251,7 +251,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
       {
         title: '1. Responsable del tratamiento (Art. 13 RGPD)',
         paragraphs: [
-          'JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133.',
+          'JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33.',
         ],
       },
       {
@@ -282,7 +282,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: '隐私政策 (GDPR)',
     effectiveLabel: '依据欧盟通用数据保护条例 (GDPR)、欧盟数字服务法 (DSA) 及法国法律制定',
     controllerBadge:
-      '运营方与数据控制者：JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      '运营方与数据控制者：JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '1. 平台定位与适用范围',
@@ -322,7 +322,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
       {
         title: '1. 数据控制者信息 (GDPR 第 13 条)',
         paragraphs: [
-          '数据控制者：JobSQUAD，地址：10 Voie Falguiere, Vitry Sur Seine, 94400, France；邮箱：contact.jobsquad@gmail.com；电话：+33 759163133。',
+          '数据控制者：JobSQUAD，地址：10 Voie Falguiere, Vitry Sur Seine, 94400, France；邮箱：contact.jobsquad@gmail.com；电话：+33 7 59 16 31 33。',
         ],
       },
       {
@@ -363,7 +363,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: 'སྒེར་དོན་སྲིད་བྱུས། (GDPR)',
     effectiveLabel: 'ཡུ་རོབ་མཉམ་འབྲེལ་ (GDPR & DSA) དང་ཕ་རན་སིའི་ཁྲིམས་དང་མཐུན་པ།',
     controllerBadge:
-      'འཛིན་སྐྱོང་པ།: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      'འཛིན་སྐྱོང་པ།: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '༡. སྟེགས་བུའི་དམིགས་ཡུལ་དང་འགན་ཁུར།',
@@ -400,7 +400,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: 'Dateschutz (DSGVO)',
     effectiveLabel: 'Nach europäischem Rächt (DSGVO / DSA) und französischem Rächt',
     controllerBadge:
-      'Verantwortlich: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      'Verantwortlich: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '1. Rolle vo JobSQUAD',
@@ -437,7 +437,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
     privacyTab: 'སྒེར་དོན་སྲིད་བྱུས། (GDPR)',
     effectiveLabel: 'ཡུ་རོབ་མཉམ་འབྲེལ་ (GDPR & DSA) དང་ཕ་རན་སིའི་ཁྲིམས་ལུགས་གཞིར་བཟུང་བཟོས་པ།',
     controllerBadge:
-      'འགན་འཛིན་དང་གཞི་གྲངས་དོ་དམ་པ།: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 759163133',
+      'འགན་འཛིན་དང་གཞི་གྲངས་དོ་དམ་པ།: JobSQUAD · 10 Voie Falguiere, Vitry Sur Seine, 94400, France · contact.jobsquad@gmail.com · +33 7 59 16 31 33',
     termsSections: [
       {
         title: '༡། སྟེགས་བུའི་ངོ་བོ་དང་འགན་འཁྲི།',
@@ -465,7 +465,7 @@ export const LEGAL_CONTENT: Record<SupportedLang, LocalizedLegalDocument> = {
       {
         title: '༡། གཞི་གྲངས་དོ་དམ་པའི་ཁ་བྱང་དང་བསྡུ་ལེན་བྱེད་པའི་གཞི་གྲངས། (GDPR)',
         paragraphs: [
-          'གཞི་གྲངས་དོ་དམ་པ།: JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France (contact.jobsquad@gmail.com, +33 759163133)།',
+          'གཞི་གྲངས་དོ་དམ་པ།: JobSQUAD, 10 Voie Falguiere, Vitry Sur Seine, 94400, France (contact.jobsquad@gmail.com, +33 7 59 16 31 33)།',
           'བསྡུ་ལེན་བྱེད་པའི་གནས་ཚུལ། ཐོ་འགོད་མིང་དང་གློག་འཕྲིན། ཁ་པར་ཨང་གྲངས། ཐོ་ཁོངས་རིགས། གསང་ཨང་ཉེན་སྲུང་ཨང་རྟགས་ (scrypt) འམ་ Google ངོ་རྟགས། ཆ་རྐྱེན་ཁས་ལེན་པའི་དུས་ཚོད། གསལ་བསྒྲགས་ཀྱི་འདྲ་པར་དང་ཡིག་འཕྲིན་ཁག དེ་བཞིན་བདེ་འཇགས་དང་ CAPTCHA ཞིབ་བཤེར་ཆེད་དགོས་ངེས་ཀྱི་ཉར་འཇོག་ཙམ་ལས་ཚོང་ལས་རྗེས་འདེད་བྱེད་མཁན་གྱི་ Cookie གང་ཡང་མེད།',
         ],
       },

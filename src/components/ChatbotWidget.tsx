@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUp, MessageSquare, Send, X } from 'lucide-react';
 import { UI_TEXT } from '../i18n/translations.ts';
 import { sendAssistantMessage } from '../lib/api.ts';
-import type { SupportedLang } from '../types/index.ts';
+import { buildSmartCatalogReply } from '../lib/chatbotEngine.ts';
+import type { Listing, SupportedLang } from '../types/index.ts';
 
 interface ChatbotWidgetProps {
   lang: SupportedLang;
@@ -14,6 +15,7 @@ interface ChatbotWidgetProps {
     total: number;
     categories: Record<string, number>;
   };
+  listings: Listing[];
 }
 
 interface ChatMessage {
@@ -39,7 +41,7 @@ const INITIAL_GREETING: Record<SupportedLang, (s: ChatbotWidgetProps['stats']) =
     `བཀྲ་ཤིས་བདེ་ལེགས། JobSQUAD དྲ་ཐོག་རོགས་རམ་ནང་ཕེབས་པར་དགའ་བསུ་ཞུ། ད་ལྟ་ལས་ཀའི་ས་མིག་ ${s.jobs} དང་། ཁང་པ་གླ་གཏོང་ ${s.houses} ། རླངས་འཁོར་གླ་གཏོང་ ${s.cars} ། ཉོ་ཚོང་དངོས་པོ་ ${s.sales} ཡོད། ཁྱེད་ལ་རོགས་རམ་གང་དགོས་སམ།`,
 };
 
-export function ChatbotWidget({ lang, stats }: ChatbotWidgetProps) {
+export function ChatbotWidget({ lang, stats, listings }: ChatbotWidgetProps) {
   const t = UI_TEXT[lang];
   const [open, setOpen] = useState(false);
   const [showTop, setShowTop] = useState(false);
@@ -81,16 +83,34 @@ export function ChatbotWidget({ lang, stats }: ChatbotWidgetProps) {
     setInput('');
     setLoading(true);
 
+    const history = messages
+      .filter((m) => m.id !== 'greet')
+      .slice(-8)
+      .map((m) => ({ role: m.role, text: m.text }));
+
     try {
-      const res = await sendAssistantMessage({ message: trimmed, language: lang, stats });
+      const res = await sendAssistantMessage({
+        message: trimmed,
+        language: lang,
+        stats,
+        listings,
+        history,
+      });
       setMessages((prev) => [
         ...prev,
         { id: `a_${Date.now()}`, role: 'assistant', text: res.reply },
       ]);
     } catch {
+      const fallbackReply = buildSmartCatalogReply({
+        message: trimmed,
+        language: lang,
+        stats,
+        listings,
+        history,
+      });
       setMessages((prev) => [
         ...prev,
-        { id: `a_${Date.now()}`, role: 'assistant', text: INITIAL_GREETING[lang](stats) },
+        { id: `a_${Date.now()}`, role: 'assistant', text: fallbackReply },
       ]);
     } finally {
       setLoading(false);
@@ -129,7 +149,7 @@ export function ChatbotWidget({ lang, stats }: ChatbotWidgetProps) {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed ${
+                  className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
                     msg.role === 'user'
                       ? 'bg-[#D9A438] text-[#071121] font-medium'
                       : 'bg-[#122038] text-slate-200 border border-slate-700/70'

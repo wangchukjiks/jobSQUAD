@@ -107,40 +107,56 @@ function JobSquadShell() {
         return;
       }
 
+      const adminFlag = await checkIsAdmin(fbUser);
+      setIsAdmin(adminFlag);
+
+      let existingProfile: UserProfile | null = null;
+      try {
+        existingProfile = await getUserProfile(fbUser.uid);
+      } catch {
+        existingProfile = null;
+      }
+
+      let syncedUser: UserProfile | null = null;
       try {
         const idToken = await fbUser.getIdToken();
-        await syncFirebaseSession(idToken);
+        syncedUser = await syncFirebaseSession(
+          idToken,
+          existingProfile
+            ? {
+                uid: fbUser.uid,
+                email: fbUser.email || existingProfile.email,
+                displayName: existingProfile.displayName,
+                phone: existingProfile.phone,
+                accountType: existingProfile.accountType,
+                acceptedTerms: existingProfile.acceptedTerms,
+              }
+            : {
+                uid: fbUser.uid,
+                email: fbUser.email || '',
+                displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Member',
+              }
+        );
       } catch {
         // Continue with client-side Firebase session
       }
 
-      const adminFlag = await checkIsAdmin(fbUser);
-      setIsAdmin(adminFlag);
-
-      try {
-        const existingProfile = await getUserProfile(fbUser.uid);
-        if (existingProfile) {
-          setUserProfile({ ...existingProfile, isAdmin: adminFlag });
-        } else {
-          setUserProfile({
-            uid: fbUser.uid,
-            displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Member',
-            email: fbUser.email || '',
-            phone: '',
-            accountType: 'employer',
-            isAdmin: adminFlag,
-          });
+      const resolvedProfile = existingProfile || syncedUser;
+      if (resolvedProfile && resolvedProfile.phone && (resolvedProfile.acceptedTerms || adminFlag || resolvedProfile.isAdmin)) {
+        setUserProfile({ ...resolvedProfile, isAdmin: Boolean(adminFlag || resolvedProfile.isAdmin) });
+      } else {
+        setUserProfile({
+          uid: resolvedProfile?.uid || fbUser.uid,
+          displayName: resolvedProfile?.displayName || fbUser.displayName || fbUser.email?.split('@')[0] || 'Member',
+          email: resolvedProfile?.email || fbUser.email || '',
+          phone: resolvedProfile?.phone || '',
+          accountType: resolvedProfile?.accountType || 'employer',
+          acceptedTerms: Boolean(resolvedProfile?.acceptedTerms || adminFlag),
+          isAdmin: Boolean(adminFlag || resolvedProfile?.isAdmin),
+        });
+        if (!resolvedProfile?.phone || !(resolvedProfile?.acceptedTerms || adminFlag)) {
           setAuthOpen(true);
         }
-      } catch {
-        setUserProfile({
-          uid: fbUser.uid,
-          displayName: fbUser.displayName || 'Member',
-          email: fbUser.email || '',
-          phone: '',
-          accountType: 'employer',
-          isAdmin: adminFlag,
-        });
       }
 
       await refreshServerListings();
@@ -510,7 +526,7 @@ function JobSquadShell() {
         onOpenLegal={(tab) => setLegalTab(tab)}
       />
 
-      <ChatbotWidget lang={lang} stats={stats} />
+      <ChatbotWidget lang={lang} stats={stats} listings={visibleListings} />
 
       <ContactModal
         open={contactOpen}
@@ -534,6 +550,18 @@ function JobSquadShell() {
             setFormInitialMode(nextMode);
             setFormOpen(true);
           }
+        }}
+        onAccountDeleted={() => {
+          setUserProfile(null);
+          setIsAdmin(false);
+          setActiveScope('all');
+          setPendingPostMode(null);
+          setDetailListing(null);
+          setAuthOpen(false);
+          void refreshServerListings();
+          void fetchFirestoreListingsOnce()
+            .then((items) => setFirestoreListings(items))
+            .catch(() => {});
         }}
         onOpenLegal={(tab) => setLegalTab(tab)}
         onClose={() => {

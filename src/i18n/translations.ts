@@ -181,6 +181,15 @@ export interface UIStrings {
     lister: string;
     saveProfile: string;
     signedInAs: string;
+    accountTitle: string;
+    updateProfileBtn: string;
+    profileUpdated: string;
+    switchAccountBtn: string;
+    deleteAccountBtn: string;
+    deleteAccountTitle: string;
+    deleteAccountConfirm: string;
+    deleteAccountConfirmBtn: string;
+    adminDeleteDisabled: string;
   };
   listingModal: {
     createTitle: string;
@@ -434,6 +443,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: '房东 / 车主 / 卖家',
       saveProfile: '完成注册并保存',
       signedInAs: '当前登录',
+      accountTitle: '我的账户设置',
+      updateProfileBtn: '保存资料修改',
+      profileUpdated: '账户资料已更新。',
+      switchAccountBtn: '切换其他 Google 账号',
+      deleteAccountBtn: '删除我的账户',
+      deleteAccountTitle: '永久删除账户',
+      deleteAccountConfirm: '此操作将永久删除您的账户以及您发布的所有信息，且无法恢复。确定继续吗？',
+      deleteAccountConfirmBtn: '确认永久删除',
+      adminDeleteDisabled: '主管理员账户受系统保护，不可删除。',
     },
     listingModal: {
       createTitle: '发布新信息',
@@ -694,6 +712,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: 'Owner / Seller',
       saveProfile: 'Complete Registration',
       signedInAs: 'Signed in as',
+      accountTitle: 'My Account Settings',
+      updateProfileBtn: 'Save Profile Changes',
+      profileUpdated: 'Your profile has been updated.',
+      switchAccountBtn: 'Use a different Google account',
+      deleteAccountBtn: 'Delete My Account',
+      deleteAccountTitle: 'Delete Account Permanently',
+      deleteAccountConfirm: 'This will permanently delete your account and all listings you published. This action cannot be undone.',
+      deleteAccountConfirmBtn: 'Permanently Delete Account',
+      adminDeleteDisabled: 'Primary administrator account is protected and cannot be deleted.',
     },
     listingModal: {
       createTitle: 'Create New Listing',
@@ -954,6 +981,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: 'Propriétaire / Vendeur',
       saveProfile: 'Valider l’inscription',
       signedInAs: 'Connecté :',
+      accountTitle: 'Paramètres de mon compte',
+      updateProfileBtn: 'Enregistrer les modifications',
+      profileUpdated: 'Votre profil a été mis à jour.',
+      switchAccountBtn: 'Utiliser un autre compte Google',
+      deleteAccountBtn: 'Supprimer mon compte',
+      deleteAccountTitle: 'Supprimer définitivement le compte',
+      deleteAccountConfirm: 'Cette action supprimera définitivement votre compte ainsi que toutes vos annonces publiées.',
+      deleteAccountConfirmBtn: 'Supprimer définitivement',
+      adminDeleteDisabled: 'Le compte administrateur principal est protégé.',
     },
     listingModal: {
       createTitle: 'Publier une annonce',
@@ -1214,6 +1250,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: 'Propietario / Vendedor',
       saveProfile: 'Guardar registro',
       signedInAs: 'Conectado como',
+      accountTitle: 'Configuración de mi cuenta',
+      updateProfileBtn: 'Guardar cambios',
+      profileUpdated: 'Tu perfil se ha actualizado correctamente.',
+      switchAccountBtn: 'Usar otra cuenta de Google',
+      deleteAccountBtn: 'Eliminar mi cuenta',
+      deleteAccountTitle: 'Eliminar cuenta permanentemente',
+      deleteAccountConfirm: 'Esta acción eliminará permanentemente tu cuenta y todos los anuncios que hayas publicado.',
+      deleteAccountConfirmBtn: 'Eliminar cuenta definitivamente',
+      adminDeleteDisabled: 'La cuenta de administrador principal está protegida.',
     },
     listingModal: {
       createTitle: 'Publicar anuncio',
@@ -1474,6 +1519,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: 'ཇོ་བདག་ / ཚོང་པ།',
       saveProfile: 'ཐོ་བཀོད་སྲུང་།',
       signedInAs: 'ནང་བསྐྱོད་མིང་།',
+      accountTitle: 'ངེད་ཀྱི་རྩིས་ཐོ།',
+      updateProfileBtn: 'གསལ་བཀོད་བཟོ་བཅོས་སྲུང་།',
+      profileUpdated: 'ཁྱོད་ཀྱི་རྩིས་ཐོ་དུས་མཐུན་བཟོ་ཡོད།',
+      switchAccountBtn: 'Google རྩིས་ཐོ་གཞན་ལག་ལེན་འཐབ།',
+      deleteAccountBtn: 'ངེད་ཀྱི་རྩིས་ཐོ་བཏོན་གཏང་།',
+      deleteAccountTitle: 'རྩིས་ཐོ་གཏན་བསུབ་གཏང་།',
+      deleteAccountConfirm: 'འདི་གིས་ཁྱོད་ཀྱི་རྩིས་ཐོ་དང་ཁྱོད་ཀྱིས་བཀོད་མི་གསལ་བསྒྲགས་ཆ་མཉམ་གཏན་མེད་བཏོན་གཏང་འོང་།',
+      deleteAccountConfirmBtn: 'གཏན་མེད་བཏོན་གཏང་།',
+      adminDeleteDisabled: 'བདག་སྐྱོང་པ་གཙོ་བོའི་རྩིས་ཐོ་བཏོན་གཏང་མི་ཆོག',
     },
     listingModal: {
       createTitle: 'གསལ་བསྒྲགས་གསརཔ་སྤེལ།',
@@ -1734,6 +1788,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: 'Vermieter / Verchäufer',
       saveProfile: 'Registrierig abschliisse',
       signedInAs: 'Aagmolde als',
+      accountTitle: 'Mis Konto',
+      updateProfileBtn: 'Änderige speichere',
+      profileUpdated: 'Ihr Profil isch aktualisiert worde.',
+      switchAccountBtn: 'E anders Google-Konto bruuche',
+      deleteAccountBtn: 'Mis Konto lösche',
+      deleteAccountTitle: 'Konto endgültig lösche',
+      deleteAccountConfirm: 'Damit wärded Ihr Konto und alli vo Ihne veröffentlichte Inserat unwiederruflich glöscht.',
+      deleteAccountConfirmBtn: 'Konto endgültig lösche',
+      adminDeleteDisabled: 'S Haupt-Administratorkonto cha nöd glöscht werde.',
     },
     listingModal: {
       createTitle: 'Neus Inserat erstelle',
@@ -1994,6 +2057,15 @@ export const UI_TEXT: Record<SupportedLang, UIStrings> = {
       lister: 'ཁང་བདག་ / ཚོང་པ།',
       saveProfile: 'ཐོ་འགོད་ལེགས་གྲུབ།',
       signedInAs: 'ནང་འཛུལ་ཟིན་པའི་མིང་།',
+      accountTitle: 'ངའི་ཐོ་ཁོངས་སྒྲིག་བཀོད།',
+      updateProfileBtn: 'འགྱུར་བ་ཉར་ཚགས།',
+      profileUpdated: 'ཁྱེད་ཀྱི་སྒེར་གྱི་གནས་ཚུལ་གསར་བསྒྱུར་བྱས་ཟིན།',
+      switchAccountBtn: 'Google ཐོ་ཁོངས་གཞན་བཀོལ་སྤྱོད།',
+      deleteAccountBtn: 'ངའི་ཐོ་ཁོངས་བསུབ།',
+      deleteAccountTitle: 'ཐོ་ཁོངས་གཏན་དུ་བསུབ།',
+      deleteAccountConfirm: 'འདིས་ཁྱེད་ཀྱི་ཐོ་ཁོངས་དང་ཁྱེད་ཀྱིས་སྤེལ་བའི་གསལ་བསྒྲགས་ཚང་མ་གཏན་དུ་བསུབ་རྒྱུ་ཡིན་པས་ཕྱིར་ལེན་མི་ཐུབ།',
+      deleteAccountConfirmBtn: 'གཏན་དུ་བསུབ་རྒྱུར་གཏན་འཁེལ།',
+      adminDeleteDisabled: 'དོ་དམ་པ་གཙོ་བོའི་ཐོ་ཁོངས་སྲུང་སྐྱོབ་བྱས་ཡོད་པས་བསུབ་མི་ཆོག',
     },
     listingModal: {
       createTitle: 'གསལ་བསྒྲགས་གསར་པ་སྤེལ།',

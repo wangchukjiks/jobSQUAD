@@ -1,7 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import {
+  deleteUser,
   getAuth,
   GoogleAuthProvider,
+  reauthenticateWithPopup,
   signInWithPopup,
   signOut,
   type User,
@@ -21,6 +23,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
   type QueryDocumentSnapshot,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -31,6 +34,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export const BOOTSTRAPPED_ADMIN_EMAILS = new Set([
   'wangchukjiks@gmail.com',
@@ -122,16 +126,37 @@ export async function checkIsAdmin(user: User | null): Promise<boolean> {
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   const path = `users/${uid}`;
   try {
-    const snap = await getDoc(doc(db, 'users', uid));
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     const data = snap.data();
+    const email = String(data.email || '');
+    const isBootstrappedAdmin = BOOTSTRAPPED_ADMIN_EMAILS.has(email.toLowerCase());
+    let acceptedTerms = Boolean(data.acceptedTerms);
+
+    if (isBootstrappedAdmin && !acceptedTerms && auth.currentUser?.uid === uid && auth.currentUser?.emailVerified) {
+      try {
+        await updateDoc(ref, {
+          displayName: String(data.displayName || 'JobSQUAD Administrator'),
+          phone: String(data.phone || '+33 7 59 16 31 33'),
+          accountType: data.accountType || 'employer',
+          acceptedTerms: true,
+          acceptedTermsAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        acceptedTerms = true;
+      } catch {
+        acceptedTerms = true;
+      }
+    }
+
     return {
       uid: String(data.uid),
       displayName: String(data.displayName),
-      email: String(data.email),
+      email,
       phone: String(data.phone),
       accountType: data.accountType,
-      acceptedTerms: Boolean(data.acceptedTerms),
+      acceptedTerms: isBootstrappedAdmin ? true : acceptedTerms,
       acceptedTermsAt: data.acceptedTermsAt?.toMillis ? data.acceptedTermsAt.toMillis() : undefined,
     };
   } catch (error) {
@@ -141,6 +166,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 
 export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Promise<void> {
   const path = `users/${profile.uid}`;
+  const isBootstrappedAdmin = BOOTSTRAPPED_ADMIN_EMAILS.has(profile.email.toLowerCase());
+  const effectiveAcceptedTerms = Boolean(profile.acceptedTerms || isBootstrappedAdmin);
   try {
     const ref = doc(db, 'users', profile.uid);
     const existing = await getDoc(ref);
@@ -153,7 +180,7 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
         updatedAt: serverTimestamp(),
       };
       if (!('acceptedTerms' in existingData)) {
-        if (!profile.acceptedTerms) {
+        if (!effectiveAcceptedTerms) {
           throw new Error('You must accept the Terms of Service and Privacy Policy.');
         }
         updates.acceptedTerms = true;
@@ -161,7 +188,7 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
       }
       await updateDoc(ref, updates);
     } else {
-      if (!profile.acceptedTerms) {
+      if (!effectiveAcceptedTerms) {
         throw new Error('You must accept the Terms of Service and Privacy Policy.');
       }
       await setDoc(ref, {
@@ -181,6 +208,45 @@ export async function saveUserProfile(profile: Omit<UserProfile, 'isAdmin'>): Pr
   }
 }
 
+export async function deleteOwnFirebaseAccount(uid: string): Promise<void> {
+  const current = auth.currentUser;
+  if (!current || current.uid !== uid) {
+    throw new Error('You must be signed in to delete your account.');
+  }
+  if (current.email && BOOTSTRAPPED_ADMIN_EMAILS.has(current.email.toLowerCase())) {
+    throw new Error('Primary administrator account cannot be deleted.');
+  }
+
+  // Delete user's Firestore listings first while authenticated
+  try {
+    const q = query(collection(db, 'listings'), where('ownerId', '==', uid));
+    const snap = await getDocs(q);
+    await Promise.allSettled(snap.docs.map((d) => deleteDoc(d.ref)));
+  } catch {
+    // Continue with profile & auth deletion
+  }
+
+  // Delete Firestore user profile
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch {
+    // Ignore if profile doc wasn't created yet
+  }
+
+  // Delete Firebase Auth account (reauthenticating via Google popup if required)
+  try {
+    await deleteUser(current);
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code || '';
+    if (code === 'auth/requires-recent-login') {
+      await reauthenticateWithPopup(current, googleProvider);
+      await deleteUser(current);
+    } else {
+      throw err;
+    }
+  }
+}
+
 export async function listAllUserProfiles(): Promise<
   (UserProfile & { createdAt?: number; updatedAt?: number })[]
 > {
@@ -195,15 +261,16 @@ export async function listAllUserProfiles(): Promise<
     return snap.docs.map((docSnap) => {
       const data = docSnap.data();
       const email = String(data.email || '');
+      const isAdminEmail = BOOTSTRAPPED_ADMIN_EMAILS.has(email.toLowerCase());
       return {
         uid: String(data.uid || docSnap.id),
         displayName: String(data.displayName || ''),
         email,
         phone: String(data.phone || ''),
         accountType: data.accountType,
-        acceptedTerms: Boolean(data.acceptedTerms),
+        acceptedTerms: isAdminEmail ? true : Boolean(data.acceptedTerms),
         acceptedTermsAt: data.acceptedTermsAt?.toMillis ? data.acceptedTermsAt.toMillis() : undefined,
-        isAdmin: BOOTSTRAPPED_ADMIN_EMAILS.has(email.toLowerCase()),
+        isAdmin: isAdminEmail,
         createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : undefined,
         updatedAt: data.updatedAt?.toMillis ? data.updatedAt.toMillis() : undefined,
       };

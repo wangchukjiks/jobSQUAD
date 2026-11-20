@@ -22,15 +22,20 @@ import { sendContactEmail, sendListingInquiryEmail } from './src/server/email.ts
 import { SEED_LISTINGS } from './src/data/seedListings.ts';
 import {
   authenticateAccount,
+  deleteOwnStoredUser,
   deleteServerListing,
   deleteStoredUser,
   getAllServerListings,
   getAllStoredUsers,
   getServerListingById,
+  getStoredUserByUid,
   registerAccount,
+  updateOwnStoredUser,
   updateStoredUser,
+  upsertGoogleStoredUser,
   upsertServerListing,
 } from './src/server/store.ts';
+import { formatPhoneNumber, getDialCodeForCountry } from './src/lib/phone.ts';
 import type { Listing } from './src/types/index.ts';
 
 dotenv.config();
@@ -110,6 +115,138 @@ async function startServer() {
     res.json({ valid: true });
   });
 
+  const geoIpCache = new Map<string, { countryCode: string; expiresAt: number }>();
+
+  function normalizeClientIp(rawIp: string): string {
+    let ip = rawIp.trim();
+    if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+    const portMatch = ip.match(/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/);
+    if (portMatch) ip = portMatch[1];
+    return ip;
+  }
+
+  function isPrivateOrLocalIp(ip: string): boolean {
+    if (!ip) return true;
+    const lower = ip.toLowerCase();
+    if (lower === '::1' || lower === 'localhost' || lower.startsWith('fe80:') || lower.startsWith('fc') || lower.startsWith('fd')) {
+      return true;
+    }
+    const ipv4 = lower.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (!ipv4) return false;
+    const a = Number(ipv4[1]);
+    const b = Number(ipv4[2]);
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 169 && b === 254) return true;
+    return false;
+  }
+
+  function extractPublicVisitorIp(req: express.Request): string | null {
+    const candidates: string[] = [];
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string') {
+      candidates.push(...xff.split(','));
+    } else if (Array.isArray(xff)) {
+      candidates.push(...xff.flatMap((v) => v.split(',')));
+    }
+    const xRealIp = req.headers['x-real-ip'];
+    if (typeof xRealIp === 'string') candidates.push(xRealIp);
+    if (req.ip) candidates.push(req.ip);
+    if (req.socket?.remoteAddress) candidates.push(req.socket.remoteAddress);
+
+    for (const raw of candidates) {
+      const clean = normalizeClientIp(raw);
+      if (clean && !isPrivateOrLocalIp(clean)) {
+        return clean;
+      }
+    }
+    return null;
+  }
+
+  app.get('/api/geo', async (req, res) => {
+    const headerCandidates = [
+      req.headers['cf-ipcountry'],
+      req.headers['x-appengine-country'],
+      req.headers['x-vercel-ip-country'],
+      req.headers['x-country-code'],
+      req.headers['cloudfront-viewer-country'],
+      req.headers['x-client-country'],
+      req.headers['fastly-client-country'],
+    ];
+
+    let countryCode = '';
+    let fromProxyHeader = false;
+    let detectedBy: 'proxy' | 'geoip' | 'accept-language' | 'default' = 'default';
+
+    for (const candidate of headerCandidates) {
+      const val = Array.isArray(candidate) ? candidate[0] : candidate;
+      if (typeof val === 'string' && /^[A-Za-z]{2}$/.test(val.trim()) && val.trim().toUpperCase() !== 'XX') {
+        countryCode = val.trim().toUpperCase();
+        fromProxyHeader = true;
+        detectedBy = 'proxy';
+        break;
+      }
+    }
+
+    if (!countryCode) {
+      const visitorIp = extractPublicVisitorIp(req);
+      if (visitorIp) {
+        const cached = geoIpCache.get(visitorIp);
+        if (cached && cached.expiresAt > Date.now()) {
+          countryCode = cached.countryCode;
+          detectedBy = 'geoip';
+        } else {
+          try {
+            const geoRes = await fetch(
+              `https://ipwho.is/${encodeURIComponent(visitorIp)}?fields=success,country_code`,
+              { signal: AbortSignal.timeout(1500) }
+            );
+            if (geoRes.ok) {
+              const geoJson = (await geoRes.json()) as {
+                success?: boolean;
+                country_code?: string;
+              };
+              if (
+                geoJson.success &&
+                typeof geoJson.country_code === 'string' &&
+                /^[A-Za-z]{2}$/.test(geoJson.country_code.trim())
+              ) {
+                countryCode = geoJson.country_code.trim().toUpperCase();
+                detectedBy = 'geoip';
+                geoIpCache.set(visitorIp, {
+                  countryCode,
+                  expiresAt: Date.now() + 6 * 60 * 60 * 1000,
+                });
+              }
+            }
+          } catch {
+            // Fall through to accept-language
+          }
+        }
+      }
+    }
+
+    if (!countryCode) {
+      const acceptLang = req.headers['accept-language'];
+      if (typeof acceptLang === 'string') {
+        const match = acceptLang.match(/[a-z]{2,3}[-_]([A-Z]{2})/);
+        if (match?.[1]) {
+          countryCode = match[1].toUpperCase();
+          detectedBy = 'accept-language';
+        }
+      }
+    }
+
+    const resolvedCountry = countryCode || 'FR';
+    res.json({
+      countryCode: resolvedCountry,
+      dialCode: getDialCodeForCountry(resolvedCountry),
+      fromProxyHeader,
+      detectedBy,
+    });
+  });
+
   // Authentication Endpoints (Email/Password Registration & Login + Default Admin)
   app.get('/api/auth/me', (req, res) => {
     const session = readSessionFromRequest(req);
@@ -117,16 +254,96 @@ async function startServer() {
       res.json({ user: null });
       return;
     }
+    const stored = getStoredUserByUid(session.uid);
+    if (!stored && (session.uid.startsWith('usr_') || session.uid.startsWith('admin_'))) {
+      clearSessionCookie(req, res);
+      res.json({ user: null });
+      return;
+    }
     res.json({
       user: {
         uid: session.uid,
         email: session.email,
-        displayName: session.displayName,
-        phone: session.phone,
-        accountType: session.accountType,
-        isAdmin: session.isAdmin,
+        displayName: stored?.displayName ?? session.displayName,
+        phone: stored?.phone ?? session.phone,
+        accountType: stored?.accountType ?? session.accountType,
+        isAdmin: stored?.isAdmin ?? session.isAdmin,
+        acceptedTerms: stored?.acceptedTerms ?? (session.isAdmin ? true : undefined),
+        acceptedTermsAt: stored?.acceptedTermsAt,
       },
     });
+  });
+
+  app.put('/api/auth/me', requireCsrf, (req, res) => {
+    const session = readSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    try {
+      const { displayName, phone, accountType } = (req.body ?? {}) as {
+        displayName?: string;
+        phone?: string;
+        accountType?: string;
+      };
+      if (
+        typeof displayName !== 'string' ||
+        displayName.trim().length < 2 ||
+        displayName.trim().length > 120 ||
+        typeof phone !== 'string' ||
+        phone.trim().length < 6 ||
+        phone.trim().length > 40
+      ) {
+        res.status(400).json({ error: 'Please provide a valid display name and mobile number.' });
+        return;
+      }
+      const safeType =
+        accountType === 'seeker' || accountType === 'employer' || accountType === 'lister'
+          ? accountType
+          : 'employer';
+
+      const updated = updateOwnStoredUser(
+        session.uid,
+        {
+          displayName,
+          phone,
+          accountType: safeType,
+        },
+        { email: session.email, isAdmin: session.isAdmin }
+      );
+
+      const sessionToken = issueSessionCookie(req, res, {
+        uid: updated.uid,
+        email: updated.email,
+        displayName: updated.displayName,
+        phone: updated.phone,
+        accountType: updated.accountType,
+        isAdmin: updated.isAdmin,
+      });
+
+      res.json({ user: updated, sessionToken });
+    } catch (err) {
+      res.status(400).json({
+        error: err instanceof Error ? err.message : 'Unable to update profile.',
+      });
+    }
+  });
+
+  app.delete('/api/auth/me', requireCsrf, (req, res) => {
+    const session = readSessionFromRequest(req);
+    if (!session) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    try {
+      deleteOwnStoredUser(session.uid, session.email);
+      clearSessionCookie(req, res);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(403).json({
+        error: err instanceof Error ? err.message : 'Unable to delete account.',
+      });
+    }
   });
 
   app.post('/api/auth/register', requireCsrf, (req, res) => {
@@ -240,6 +457,8 @@ async function startServer() {
           displayName: user.displayName,
           phone: user.phone,
           accountType: user.accountType,
+          acceptedTerms: user.acceptedTerms ?? true,
+          acceptedTermsAt: user.acceptedTermsAt ?? user.createdAt,
           isAdmin: user.isAdmin,
         },
         sessionToken,
@@ -258,7 +477,15 @@ async function startServer() {
 
   app.post('/api/auth/firebase-session', requireCsrf, async (req, res) => {
     try {
-      const { idToken } = req.body ?? {};
+      const { idToken, profile } = (req.body ?? {}) as {
+        idToken?: string;
+        profile?: {
+          displayName?: string;
+          phone?: string;
+          accountType?: string;
+          acceptedTerms?: boolean;
+        };
+      };
       const apiKey = getFirebaseApiKey();
       if (typeof idToken !== 'string' || !idToken || !apiKey) {
         res.status(400).json({ error: 'Invalid Firebase authentication token.' });
@@ -294,20 +521,50 @@ async function startServer() {
       }
 
       const normalizedEmail = fbAccount.email.trim().toLowerCase();
-      const isAdminUser = Boolean(fbAccount.emailVerified) && normalizedEmail === 'wangchukjiks@gmail.com';
-      const sessionToken = issueSessionCookie(req, res, {
+      const isAdminUser =
+        Boolean(fbAccount.emailVerified) && normalizedEmail === 'wangchukjiks@gmail.com';
+
+      const safeDisplayName =
+        typeof profile?.displayName === 'string' && profile.displayName.trim().length >= 2
+          ? profile.displayName.trim().slice(0, 120)
+          : fbAccount.displayName || normalizedEmail.split('@')[0];
+      const safePhone =
+        typeof profile?.phone === 'string' && profile.phone.trim().length >= 4
+          ? formatPhoneNumber(profile.phone.trim())
+          : '';
+      const safeAccountType =
+        profile?.accountType === 'seeker' ||
+        profile?.accountType === 'employer' ||
+        profile?.accountType === 'lister'
+          ? profile.accountType
+          : undefined;
+      const safeAcceptedTerms =
+        typeof profile?.acceptedTerms === 'boolean' ? profile.acceptedTerms : undefined;
+
+      const storedUser = upsertGoogleStoredUser({
         uid: fbAccount.localId,
         email: normalizedEmail,
-        displayName: fbAccount.displayName || normalizedEmail.split('@')[0],
-        phone: '',
-        accountType: 'employer',
+        displayName: safeDisplayName,
+        phone: safePhone,
+        accountType: safeAccountType,
+        acceptedTerms: safeAcceptedTerms,
         isAdmin: isAdminUser,
+      });
+
+      const sessionToken = issueSessionCookie(req, res, {
+        uid: storedUser.uid,
+        email: storedUser.email,
+        displayName: storedUser.displayName,
+        phone: storedUser.phone,
+        accountType: storedUser.accountType,
+        isAdmin: storedUser.isAdmin,
       });
 
       res.json({
         ok: true,
-        isAdmin: isAdminUser,
+        isAdmin: storedUser.isAdmin,
         sessionToken,
+        user: storedUser,
       });
     } catch (err) {
       console.error('Firebase session sync error:', err);
@@ -350,15 +607,14 @@ async function startServer() {
         newPassword?: string;
       };
 
+      const cleanPhone = typeof phone === 'string' ? phone.trim() : '';
       if (
         typeof displayName !== 'string' ||
         displayName.trim().length < 2 ||
         displayName.trim().length > 120 ||
         typeof email !== 'string' ||
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
-        typeof phone !== 'string' ||
-        phone.trim().length < 6 ||
-        phone.trim().length > 40
+        (cleanPhone.length > 0 && (cleanPhone.length < 6 || cleanPhone.length > 40))
       ) {
         res.status(400).json({
           error: 'Please provide valid display name, email address, and mobile number.',
@@ -379,7 +635,7 @@ async function startServer() {
       const updated = updateStoredUser(uid, {
         displayName,
         email,
-        phone,
+        phone: cleanPhone,
         accountType: safeType,
         newPassword: typeof newPassword === 'string' && newPassword.length >= 8 ? newPassword : undefined,
       });
@@ -465,7 +721,7 @@ async function startServer() {
       location: body.location.trim(),
       priceEur: listingType === 'job' ? 0 : Number(body.priceEur) || 0,
       contactEmail: body.contactEmail || session.email,
-      contactPhone: body.contactPhone.trim(),
+      contactPhone: formatPhoneNumber(body.contactPhone.trim()),
       images: listingType === 'job' ? [] : Array.isArray(body.images) ? body.images.slice(0, 3) : [],
       specs: body.specs || {},
       translations: body.translations || ({} as Listing['translations']),
@@ -511,7 +767,7 @@ async function startServer() {
       location: String(incoming.location || existing?.location || '').trim(),
       priceEur: targetType === 'job' ? 0 : Number(incoming.priceEur ?? existing?.priceEur ?? 0),
       contactEmail: String(incoming.contactEmail || existing?.contactEmail || session.email).trim(),
-      contactPhone: String(incoming.contactPhone || existing?.contactPhone || '').trim(),
+      contactPhone: formatPhoneNumber(String(incoming.contactPhone || existing?.contactPhone || '').trim()),
       images:
         targetType === 'job'
           ? []
@@ -659,7 +915,7 @@ async function startServer() {
 
   app.post('/api/chat', requireCsrf, async (req, res) => {
     try {
-      const { message, language, stats } = req.body ?? {};
+      const { message, language, stats, listings: clientListings, history } = req.body ?? {};
       if (typeof message !== 'string' || message.trim().length < 1 || message.trim().length > 1000) {
         res.status(400).json({ error: 'Message must be between 1 and 1000 characters.' });
         return;
@@ -674,10 +930,39 @@ async function startServer() {
         categories: typeof stats?.categories === 'object' && stats.categories ? stats.categories : {},
       };
 
+      // Merge seed + server store + any client-passed Firestore listings
+      const serverData = getAllServerListings();
+      const deletedSet = new Set(serverData.deletedIds);
+      const mergedMap = new Map<string, Listing>();
+      for (const s of SEED_LISTINGS) {
+        if (!deletedSet.has(s.id)) mergedMap.set(s.id, s);
+      }
+      for (const srv of serverData.listings) {
+        if (!deletedSet.has(srv.id)) mergedMap.set(srv.id, srv);
+      }
+      if (Array.isArray(clientListings)) {
+        for (const cl of clientListings.slice(0, 40)) {
+          if (cl && typeof cl.id === 'string' && typeof cl.title === 'string' && !mergedMap.has(cl.id)) {
+            mergedMap.set(cl.id, cl as Listing);
+          }
+        }
+      }
+
+      const safeHistory = Array.isArray(history)
+        ? history
+            .filter(
+              (h): h is { role: 'user' | 'assistant'; text: string } =>
+                Boolean(h && (h.role === 'user' || h.role === 'assistant') && typeof h.text === 'string')
+            )
+            .slice(-8)
+        : [];
+
       const result = await generateAssistantReply({
         message: message.trim(),
         language: lang,
         stats: safeStats,
+        listings: Array.from(mergedMap.values()),
+        history: safeHistory,
       });
 
       res.json(result);
