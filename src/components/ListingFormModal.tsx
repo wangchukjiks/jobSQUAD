@@ -9,7 +9,12 @@ import {
   updateServerListing,
   verifyCaptchaAnswer,
 } from '../lib/api.ts';
-import { auth, createListingDoc, updateListingDoc } from '../lib/firebase.ts';
+import {
+  adminUpsertListingDoc,
+  auth,
+  createListingDoc,
+  updateListingDoc,
+} from '../lib/firebase.ts';
 import { formatPhoneNumber } from '../lib/phone.ts';
 import type {
   Listing,
@@ -362,21 +367,46 @@ export function ListingFormModal({
           status: editingListing.status || ('active' as const),
         };
 
-        const canUpdateInFirestore =
+        const canUpdateExistingInFirestore =
           isFirebaseAuthenticated &&
           !editingListing.isSeeded &&
           (editingListing.ownerId === user.uid || Boolean(user.isAdmin));
+        const canUpsertSeedInFirestore =
+          isFirebaseAuthenticated && Boolean(user.isAdmin) && Boolean(editingListing.isSeeded);
 
-        if (canUpdateInFirestore) {
+        if (canUpdateExistingInFirestore) {
           try {
             await updateListingDoc(editingListing.id, updates);
-            savedListing = { ...editingListing, ...updates, updatedAt: Date.now() };
+            savedListing = {
+              ...editingListing,
+              ...updates,
+              updatedAt: Date.now(),
+              firestoreSynced: true,
+            };
+            void updateServerListing(editingListing.id, {
+              ...savedListing,
+              firestoreSynced: true,
+            }).catch(() => {});
           } catch {
             savedListing = await updateServerListing(editingListing.id, {
               ...editingListing,
               ...updates,
             });
           }
+        } else if (canUpsertSeedInFirestore) {
+          const nextSeedSnapshot: Listing = {
+            ...editingListing,
+            ...updates,
+            updatedAt: Date.now(),
+            isSeeded: false,
+            firestoreSynced: true,
+          };
+          await adminUpsertListingDoc(editingListing.id, nextSeedSnapshot);
+          savedListing = nextSeedSnapshot;
+          void updateServerListing(editingListing.id, {
+            ...nextSeedSnapshot,
+            firestoreSynced: true,
+          }).catch(() => {});
         } else {
           savedListing = await updateServerListing(editingListing.id, {
             ...editingListing,
@@ -410,9 +440,19 @@ export function ListingFormModal({
             createdAt: Date.now(),
             updatedAt: Date.now(),
             isSeeded: false,
+            firestoreSynced: true,
           };
+          void saveServerListing({
+            ...payload,
+            id: newId,
+            firestoreSynced: true,
+          }).catch(() => {});
         } else {
-          savedListing = await saveServerListing({ ...payload, id: newId });
+          savedListing = await saveServerListing({
+            ...payload,
+            id: newId,
+            firestoreSynced: false,
+          });
         }
       }
 
@@ -443,15 +483,11 @@ export function ListingFormModal({
             onSaved(enriched);
             if (
               isFirebaseAuthenticated &&
-              !savedListing.isSeeded &&
               (savedListing.ownerId === user.uid || Boolean(user.isAdmin))
             ) {
               await updateListingDoc(savedListing.id, { translations }).catch(() => {});
-            } else {
-              await updateServerListing(savedListing.id, { ...savedListing, translations }).catch(
-                () => {}
-              );
             }
+            await updateServerListing(savedListing.id, { ...enriched }).catch(() => {});
           })
           .catch(() => {});
       }

@@ -369,14 +369,16 @@ export async function fetchFirestoreListingsOnce(): Promise<Listing[]> {
 
 export function subscribeListings(
   onData: (listings: Listing[]) => void,
-  onError?: (err: Error) => void
+  onError?: (err: Error) => void,
+  onReady?: () => void
 ): Unsubscribe {
   const path = 'listings';
   const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
 
   void fetchFirestoreListingsOnce()
     .then((items) => {
-      if (items.length > 0) onData(items);
+      onData(items);
+      if (onReady) onReady();
     })
     .catch(() => {});
 
@@ -384,6 +386,7 @@ export function subscribeListings(
     q,
     (snapshot) => {
       onData(snapshot.docs.map(mapListingDoc));
+      if (onReady) onReady();
     },
     (error) => {
       if (onError) {
@@ -393,6 +396,196 @@ export function subscribeListings(
       }
     }
   );
+}
+
+export async function fetchDeletedSeedsOnce(): Promise<string[]> {
+  const path = 'deletedSeeds';
+  try {
+    let snap;
+    try {
+      snap = await getDocsFromServer(collection(db, path));
+    } catch {
+      snap = await getDocs(collection(db, path));
+    }
+    return snap.docs.map((d) => d.id);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export function subscribeDeletedSeeds(
+  onData: (seedIds: string[]) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const path = 'deletedSeeds';
+  void fetchDeletedSeedsOnce()
+    .then((ids) => onData(ids))
+    .catch(() => {});
+
+  return onSnapshot(
+    collection(db, path),
+    (snapshot) => {
+      onData(snapshot.docs.map((d) => d.id));
+    },
+    (error) => {
+      if (onError) {
+        onError(error);
+      } else {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
+    }
+  );
+}
+
+export async function markSeedDeletedDoc(seedId: string): Promise<void> {
+  const path = `deletedSeeds/${seedId}`;
+  const current = auth.currentUser;
+  if (!current) {
+    throw new Error('Administrator Google authentication required to sync deletion.');
+  }
+  try {
+    await setDoc(doc(db, 'deletedSeeds', seedId), {
+      id: seedId,
+      deletedBy: current.uid,
+      deletedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function unmarkSeedDeletedDoc(seedId: string): Promise<void> {
+  const path = `deletedSeeds/${seedId}`;
+  try {
+    await deleteDoc(doc(db, 'deletedSeeds', seedId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+function clampString(value: unknown, fallback: string, minLen: number, maxLen: number): string {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  const base = raw.length >= minLen ? raw : fallback;
+  return base.slice(0, maxLen);
+}
+
+function buildSanitizedFirestorePayload(listing: Listing, fallbackOwnerId: string) {
+  const safeType =
+    listing.type === 'house' || listing.type === 'car' || listing.type === 'sale'
+      ? listing.type
+      : 'job';
+  const safeImages =
+    safeType === 'job'
+      ? []
+      : (Array.isArray(listing.images) ? listing.images : [])
+          .filter((img): img is string => typeof img === 'string' && img.length > 0 && img.length <= 450000)
+          .slice(0, 3);
+  const rawPhone = typeof listing.contactPhone === 'string' ? listing.contactPhone.trim() : '';
+  const safePhone =
+    safeType === 'job'
+      ? rawPhone.slice(0, 40)
+      : rawPhone.length >= 6
+        ? rawPhone.slice(0, 40)
+        : '+33 1 00 00 00 00';
+
+  const ownerName = clampString(listing.ownerName, 'JobSQUAD Member', 2, 120);
+  const title = clampString(listing.title, 'JobSQUAD Listing', 2, 160);
+  let description = clampString(listing.description, 'JobSQUAD community marketplace listing.', 10, 3000);
+  if (description.length < 10) {
+    description = `${description} — JobSQUAD`.slice(0, 3000);
+  }
+  const location = clampString(listing.location, 'Europe', 2, 160);
+  const contactEmail = clampString(listing.contactEmail, 'contact@jobsquad.local', 5, 160);
+  const category = clampString(listing.category, 'babysitting', 1, 80);
+
+  return {
+    ownerId: fallbackOwnerId,
+    ownerName,
+    type: safeType,
+    category,
+    title,
+    description,
+    location,
+    priceEur: safeType === 'job' ? 0 : Math.max(0, Math.min(100000000, Number(listing.priceEur) || 0)),
+    contactEmail,
+    contactPhone: safePhone,
+    images: safeImages,
+    specs: listing.specs && typeof listing.specs === 'object' ? listing.specs : {},
+    translations: listing.translations && typeof listing.translations === 'object' ? listing.translations : {},
+    status: listing.status === 'closed' ? ('closed' as const) : ('active' as const),
+  };
+}
+
+export async function adminUpsertListingDoc(
+  listingId: string,
+  listing: Listing,
+  moderation?: { flagged?: boolean; flagReason?: string; flaggedBy?: string }
+): Promise<void> {
+  const path = `listings/${listingId}`;
+  const current = auth.currentUser;
+  if (!current) {
+    throw new Error('Administrator Google authentication required.');
+  }
+  try {
+    const ref = doc(db, 'listings', listingId);
+    const snap = await getDoc(ref);
+    const base = buildSanitizedFirestorePayload(listing, current.uid);
+
+    const hasModeration = moderation && typeof moderation.flagged === 'boolean';
+    const isFlagged = hasModeration ? Boolean(moderation.flagged) : Boolean(listing.flagged);
+    const reason = hasModeration
+      ? isFlagged
+        ? String(moderation.flagReason || '').trim().slice(0, 500)
+        : ''
+      : typeof listing.flagReason === 'string'
+        ? listing.flagReason.trim().slice(0, 500)
+        : '';
+    const flaggedBy = hasModeration
+      ? isFlagged
+        ? String(moderation.flaggedBy || current.email || 'admin').trim().slice(0, 160)
+        : ''
+      : typeof listing.flaggedBy === 'string'
+        ? listing.flaggedBy.trim().slice(0, 160)
+        : '';
+
+    if (snap.exists()) {
+      const updatePayload: Record<string, unknown> = {
+        ownerName: base.ownerName,
+        category: base.category,
+        title: base.title,
+        description: base.description,
+        location: base.location,
+        priceEur: base.priceEur,
+        contactEmail: base.contactEmail,
+        contactPhone: base.contactPhone,
+        images: base.images,
+        specs: base.specs,
+        translations: base.translations,
+        status: base.status,
+        flagged: isFlagged,
+        flagReason: isFlagged ? reason : '',
+        flaggedAt: isFlagged ? serverTimestamp() : null,
+        flaggedBy: isFlagged ? flaggedBy : '',
+        updatedAt: serverTimestamp(),
+      };
+      await updateDoc(ref, updatePayload);
+    } else {
+      const createPayload: Record<string, unknown> = {
+        ...base,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      if (isFlagged) {
+        createPayload.flagged = true;
+        createPayload.flagReason = reason;
+        createPayload.flaggedAt = serverTimestamp();
+        createPayload.flaggedBy = flaggedBy;
+      }
+      await setDoc(ref, createPayload);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
 }
 
 export async function createListingDoc(
@@ -457,11 +650,21 @@ export async function updateListingDoc(
 
 export async function flagListingDoc(
   listingId: string,
-  payload: { flagged: boolean; flagReason: string; flaggedBy: string }
+  payload: { flagged: boolean; flagReason: string; flaggedBy: string },
+  fallbackListing?: Listing
 ): Promise<void> {
   const path = `listings/${listingId}`;
   try {
-    await updateDoc(doc(db, 'listings', listingId), {
+    const ref = doc(db, 'listings', listingId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      if (fallbackListing) {
+        await adminUpsertListingDoc(listingId, fallbackListing, payload);
+        return;
+      }
+      throw new Error('Listing document does not exist in Firestore.');
+    }
+    await updateDoc(ref, {
       flagged: payload.flagged,
       flagReason: payload.flagged ? payload.flagReason.trim().slice(0, 500) : '',
       flaggedAt: payload.flagged ? serverTimestamp() : null,

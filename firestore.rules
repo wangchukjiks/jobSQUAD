@@ -96,6 +96,14 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidDeletedSeed(data) {
+      return data.keys().hasAll(['id', 'deletedBy', 'deletedAt']) &&
+        data.keys().hasOnly(['id', 'deletedBy', 'deletedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.deletedBy) &&
+        data.deletedAt is timestamp;
+    }
+
     // Health check document for client SDK startup validation
     match /test/{docId} {
       allow get: if isValidId(docId);
@@ -174,7 +182,7 @@ service cloud.firestore {
         isValidId(listingId) &&
         isValidListing(incoming()) &&
         incoming().ownerId == request.auth.uid &&
-        (!('flagged' in incoming()) || incoming().flagged == false) &&
+        (isAdmin() || (!('flagged' in incoming()) || incoming().flagged == false)) &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
       allow update: if isVerifiedUser() &&
@@ -202,6 +210,19 @@ service cloud.firestore {
           )
         );
       allow delete: if isVerifiedUser() && isValidId(listingId) && (isOwner(existing().ownerId) || isAdmin());
+    }
+
+    // Global seed listing deletion tombstones (no PII; readable by all devices, admin write only)
+    match /deletedSeeds/{seedId} {
+      allow get: if isValidId(seedId);
+      allow list: if true;
+      allow create, update: if isAdmin() &&
+        isValidId(seedId) &&
+        isValidDeletedSeed(incoming()) &&
+        incoming().id == seedId &&
+        incoming().deletedBy == request.auth.uid &&
+        incoming().deletedAt == request.time;
+      allow delete: if isAdmin() && isValidId(seedId);
     }
   }
 }

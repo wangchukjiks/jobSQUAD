@@ -26,15 +26,20 @@ import {
   logoutServerSession,
   syncFirebaseSession,
   translateListingViaServer,
+  updateServerListing,
 } from './lib/api.ts';
 import {
+  adminUpsertListingDoc,
   auth,
   checkIsAdmin,
   deleteListingDoc,
+  fetchDeletedSeedsOnce,
   fetchFirestoreListingsOnce,
   flagListingDoc,
   getUserProfile,
+  markSeedDeletedDoc,
   signOutUser,
+  subscribeDeletedSeeds,
   subscribeListings,
 } from './lib/firebase.ts';
 import type { Listing, SupportedLang, UserProfile } from './types/index.ts';
@@ -47,8 +52,10 @@ function JobSquadShell() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [firestoreListings, setFirestoreListings] = useState<Listing[]>([]);
+  const [firestoreLoaded, setFirestoreLoaded] = useState(false);
+  const [firestoreDeletedSeeds, setFirestoreDeletedSeeds] = useState<string[]>([]);
   const [serverListings, setServerListings] = useState<Listing[]>([]);
-  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [serverDeletedIds, setServerDeletedIds] = useState<string[]>([]);
 
   const [rentalsSubtab, setRentalsSubtab] = useState<'house' | 'car'>('house');
   const [selectedJobCat, setSelectedJobCat] = useState<string>('all');
@@ -101,7 +108,7 @@ function JobSquadShell() {
   const refreshServerListings = async () => {
     const { listings, deletedIds: del } = await fetchServerListings();
     setServerListings(listings);
-    setDeletedIds(del);
+    setServerDeletedIds(del);
   };
 
   useEffect(() => {
@@ -193,41 +200,94 @@ function JobSquadShell() {
   useEffect(() => {
     const unsubListings = subscribeListings(
       (items) => setFirestoreListings(items),
-      (err) => console.error('Listings subscription error:', err)
+      (err) => console.error('Listings subscription error:', err),
+      () => setFirestoreLoaded(true)
     );
 
-    const handleSyncOnResume = () => {
-      if (document.visibilityState === 'visible') {
-        void refreshServerListings();
-        void fetchFirestoreListingsOnce()
-          .then((items) => setFirestoreListings(items))
-          .catch(() => {});
-      }
-    };
+    const unsubDeletedSeeds = subscribeDeletedSeeds(
+      (ids) => setFirestoreDeletedSeeds(ids),
+      (err) => console.error('Deleted seeds subscription error:', err)
+    );
 
-    const handlePageShowOrOnline = () => {
+    const triggerFullSync = () => {
       void refreshServerListings();
       void fetchFirestoreListingsOnce()
-        .then((items) => setFirestoreListings(items))
+        .then((items) => {
+          setFirestoreListings(items);
+          setFirestoreLoaded(true);
+        })
+        .catch(() => {});
+      void fetchDeletedSeedsOnce()
+        .then((ids) => setFirestoreDeletedSeeds(ids))
         .catch(() => {});
     };
 
+    const handleSyncOnResume = () => {
+      if (document.visibilityState === 'visible') {
+        triggerFullSync();
+      }
+    };
+
+    const pollInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        triggerFullSync();
+      }
+    }, 15000);
+
     window.addEventListener('focus', handleSyncOnResume);
-    window.addEventListener('pageshow', handlePageShowOrOnline);
-    window.addEventListener('online', handlePageShowOrOnline);
+    window.addEventListener('pageshow', triggerFullSync);
+    window.addEventListener('online', triggerFullSync);
     document.addEventListener('visibilitychange', handleSyncOnResume);
     return () => {
       unsubListings();
+      unsubDeletedSeeds();
+      window.clearInterval(pollInterval);
       window.removeEventListener('focus', handleSyncOnResume);
-      window.removeEventListener('pageshow', handlePageShowOrOnline);
-      window.removeEventListener('online', handlePageShowOrOnline);
+      window.removeEventListener('pageshow', triggerFullSync);
+      window.removeEventListener('online', triggerFullSync);
       document.removeEventListener('visibilitychange', handleSyncOnResume);
     };
   }, []);
 
+  const deletedIds = useMemo(() => {
+    return Array.from(new Set([...serverDeletedIds, ...firestoreDeletedSeeds]));
+  }, [serverDeletedIds, firestoreDeletedSeeds]);
+
+  // One-time-per-session Admin auto-backfill: push any legacy server-only posts & seed deletions into Firestore
+  const backfilledIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!isAdmin || !firebaseUser || !firestoreLoaded) return;
+
+    const firestoreIds = new Set(firestoreListings.map((f) => f.id));
+    const firestoreDeletedSet = new Set(firestoreDeletedSeeds);
+    const combinedDeletedSet = new Set(deletedIds);
+
+    for (const delId of serverDeletedIds) {
+      if (delId.startsWith('seed-') && !firestoreDeletedSet.has(delId) && !backfilledIdsRef.current.has(`del:${delId}`)) {
+        backfilledIdsRef.current.add(`del:${delId}`);
+        void markSeedDeletedDoc(delId).catch(() => {});
+      }
+    }
+
+    for (const srvItem of serverListings) {
+      if (
+        !srvItem.firestoreSynced &&
+        !firestoreIds.has(srvItem.id) &&
+        !combinedDeletedSet.has(srvItem.id) &&
+        !backfilledIdsRef.current.has(`up:${srvItem.id}`)
+      ) {
+        backfilledIdsRef.current.add(`up:${srvItem.id}`);
+        void adminUpsertListingDoc(srvItem.id, srvItem)
+          .then(() => updateServerListing(srvItem.id, { ...srvItem, firestoreSynced: true }).catch(() => {}))
+          .catch(() => {});
+      }
+    }
+  }, [isAdmin, firebaseUser, firestoreLoaded, firestoreListings, serverListings, serverDeletedIds, firestoreDeletedSeeds, deletedIds]);
+
   // Merge server-persisted listings, Firestore listings, and seed catalog (respecting admin deletions & newest edits)
   const allListings = useMemo(() => {
     const deletedSet = new Set(deletedIds);
+    const firestoreIds = new Set(firestoreListings.map((f) => f.id));
     const byId = new Map<string, Listing>();
 
     for (const seed of SEED_LISTINGS) {
@@ -238,6 +298,10 @@ function JobSquadShell() {
     }
     for (const srvItem of serverListings) {
       if (deletedSet.has(srvItem.id)) continue;
+      // Do not resurrect an item that was synced to Firestore and subsequently deleted on another device
+      if (firestoreLoaded && srvItem.firestoreSynced && !firestoreIds.has(srvItem.id)) {
+        continue;
+      }
       const existing = byId.get(srvItem.id);
       if (!existing || existing.isSeeded || (srvItem.updatedAt || 0) >= (existing.updatedAt || 0)) {
         byId.set(srvItem.id, srvItem);
@@ -247,7 +311,7 @@ function JobSquadShell() {
     return Array.from(byId.values()).sort(
       (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
     );
-  }, [firestoreListings, serverListings, deletedIds]);
+  }, [firestoreListings, firestoreLoaded, serverListings, deletedIds]);
 
   const visibleListings = allListings;
   const attemptedTranslateRef = useRef<Set<string>>(new Set());
@@ -331,9 +395,21 @@ function JobSquadShell() {
   };
 
   const handleListingSaved = (saved: Listing) => {
-    setDeletedIds((prev) => prev.filter((id) => id !== saved.id));
+    setServerDeletedIds((prev) => prev.filter((id) => id !== saved.id));
+    setFirestoreDeletedSeeds((prev) => prev.filter((id) => id !== saved.id));
     if (saved.type === 'job' && saved.category === 'looking_for_job') {
       setSelectedJobCat('looking_for_job');
+    }
+    if (saved.firestoreSynced) {
+      setFirestoreListings((prev) => {
+        const idx = prev.findIndex((item) => item.id === saved.id);
+        if (idx >= 0) {
+          const copy = [...prev];
+          copy[idx] = saved;
+          return copy;
+        }
+        return [saved, ...prev];
+      });
     }
     setServerListings((prev) => {
       const idx = prev.findIndex((item) => item.id === saved.id);
@@ -351,7 +427,6 @@ function JobSquadShell() {
     setFlagLoading(true);
     try {
       const flaggedBy = userProfile?.email || firebaseUser?.email || 'admin';
-      const isFirestoreDoc = firestoreListings.some((f) => f.id === target.id);
       let updatedListing: Listing = {
         ...target,
         flagged,
@@ -360,15 +435,22 @@ function JobSquadShell() {
         flaggedBy: flagged ? flaggedBy : undefined,
         updatedAt: Date.now(),
         isSeeded: false,
+        firestoreSynced: Boolean(firebaseUser),
       };
 
-      if (firebaseUser && isFirestoreDoc) {
+      let savedInFirestore = false;
+      if (firebaseUser) {
         try {
-          await flagListingDoc(target.id, {
-            flagged,
-            flagReason,
-            flaggedBy,
-          });
+          await flagListingDoc(
+            target.id,
+            {
+              flagged,
+              flagReason,
+              flaggedBy,
+            },
+            target
+          );
+          savedInFirestore = true;
         } catch {
           // Continue with server persistence fallback
         }
@@ -378,17 +460,23 @@ function JobSquadShell() {
         updatedListing = await flagServerListing(target.id, {
           flagged,
           flagReason,
-          listingSnapshot: target,
+          listingSnapshot: updatedListing,
         });
       } catch (err) {
-        if (!firebaseUser || !isFirestoreDoc) {
+        if (!savedInFirestore) {
           throw err;
         }
       }
 
-      setFirestoreListings((prev) =>
-        prev.map((item) => (item.id === target.id ? { ...item, ...updatedListing } : item))
-      );
+      if (savedInFirestore) {
+        setFirestoreListings((prev) => {
+          const exists = prev.some((item) => item.id === target.id);
+          if (exists) {
+            return prev.map((item) => (item.id === target.id ? { ...item, ...updatedListing } : item));
+          }
+          return [updatedListing, ...prev];
+        });
+      }
       setServerListings((prev) => {
         const exists = prev.some((item) => item.id === target.id);
         if (exists) {
@@ -406,24 +494,37 @@ function JobSquadShell() {
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
     const target = pendingDelete;
-    const existsOnServer = serverListings.some((s) => s.id === target.id);
+    const existsInFirestore = firestoreListings.some((f) => f.id === target.id);
+    const isSeedId = target.isSeeded || target.id.startsWith('seed-');
     try {
-      if (firebaseUser && !target.isSeeded && (target.ownerId === firebaseUser.uid || isAdmin)) {
-        try {
-          await deleteListingDoc(target.id);
-        } catch {
-          // Continue with server tombstone if needed
+      if (firebaseUser) {
+        if (isSeedId && isAdmin) {
+          try {
+            await markSeedDeletedDoc(target.id);
+          } catch {
+            // Continue with server tombstone
+          }
+        }
+        if (existsInFirestore && (target.ownerId === firebaseUser.uid || isAdmin)) {
+          try {
+            await deleteListingDoc(target.id);
+          } catch {
+            // Continue with server tombstone
+          }
         }
       }
-      if (isAdmin || existsOnServer || !firebaseUser) {
-        try {
-          await deleteServerListingById(target.id);
-        } catch {
-          // Ignore if already absent on server
-        }
+
+      try {
+        await deleteServerListingById(target.id);
+      } catch {
+        // Ignore if static-only or already absent on server
       }
+
       setFirestoreListings((prev) => prev.filter((item) => item.id !== target.id));
-      setDeletedIds((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
+      if (isSeedId) {
+        setFirestoreDeletedSeeds((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
+      }
+      setServerDeletedIds((prev) => (prev.includes(target.id) ? prev : [...prev, target.id]));
       setServerListings((prev) => prev.filter((item) => item.id !== target.id));
       setDetailListing((prev) => (prev && prev.id === target.id ? null : prev));
     } finally {

@@ -52,7 +52,8 @@ export default defineConfig(() => {
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{ico,png,svg,woff,woff2}'],
+          navigateFallback: null,
           navigateFallbackDenylist: [/^\/api\//, /^\/downloads\//],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
@@ -65,6 +66,31 @@ export default defineConfig(() => {
             {
               urlPattern: /^\/downloads\/.*/i,
               handler: 'NetworkOnly',
+            },
+            {
+              urlPattern: ({ request }) => request.mode === 'navigate',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'html-pages',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60,
+                },
+              },
+            },
+            {
+              urlPattern: ({ request }) =>
+                request.destination === 'script' || request.destination === 'style',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'app-assets',
+                networkTimeoutSeconds: 3,
+                expiration: {
+                  maxEntries: 30,
+                  maxAgeSeconds: 60 * 60 * 24,
+                },
+              },
             },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -81,7 +107,7 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
+          enabled: false,
           type: 'module',
         },
       }),

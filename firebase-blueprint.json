@@ -214,6 +214,30 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "DeletedSeedRecord": {
+      "title": "DeletedSeedRecord",
+      "description": "Global tombstone tracking built-in seed listings deleted by administrators.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "deletedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "deletedBy", "deletedAt"]
     }
   },
   "firestore": {
@@ -234,6 +258,12 @@
         "$ref": "#/entities/Listing"
       },
       "description": "Publicly browsable recruitment, house rental, car rental, and sales marketplace posts."
+    },
+    "/deletedSeeds/{seedId}": {
+      "schema": {
+        "$ref": "#/entities/DeletedSeedRecord"
+      },
+      "description": "Public tombstone registry so deleted seeded posts remain hidden across all devices."
     }
   }
 }

@@ -26,13 +26,19 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
 
@@ -49,6 +55,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> filePathCallback;
     private String pendingGeoOrigin;
     private GeolocationPermissions.Callback pendingGeoCallback;
+    private volatile boolean preferLiveRemoteServer = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -248,13 +255,56 @@ public class MainActivity extends Activity {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState);
         } else {
-            webView.loadUrl(APP_URL);
+            loadInitialWithLiveServerProbe();
         }
+    }
+
+    private void loadInitialWithLiveServerProbe() {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.execute(() -> {
+            boolean remoteHealthy = false;
+            HttpURLConnection conn = null;
+            try {
+                URL healthUrl = new URL(APP_URL + "api/health");
+                conn = (HttpURLConnection) healthUrl.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(1500);
+                conn.setReadTimeout(1500);
+                conn.setInstanceFollowRedirects(false);
+                if (conn.getResponseCode() == 200) {
+                    try (BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder body = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            body.append(line);
+                        }
+                        if (body.toString().contains("\"status\":\"ok\"")) {
+                            remoteHealthy = true;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+                remoteHealthy = false;
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+                executor.shutdown();
+            }
+            preferLiveRemoteServer = remoteHealthy;
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.loadUrl(APP_URL);
+                }
+            });
+        });
     }
 
     private WebResourceResponse tryServeBundledAsset(WebResourceRequest request) {
         if (request == null || request.getUrl() == null) return null;
         if (!"GET".equalsIgnoreCase(request.getMethod())) return null;
+        if (preferLiveRemoteServer) return null;
 
         Uri uri = request.getUrl();
         String host = uri.getHost();

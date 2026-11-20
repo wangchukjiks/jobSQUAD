@@ -52,6 +52,7 @@ export interface Listing {
   createdAt?: number;
   updatedAt?: number;
   isSeeded?: boolean;
+  firestoreSynced?: boolean;
 }
 
 export interface UserProfile {

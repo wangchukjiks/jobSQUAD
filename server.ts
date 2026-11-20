@@ -738,6 +738,7 @@ async function startServer() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isSeeded: false,
+      firestoreSynced: Boolean(body.firestoreSynced),
     };
 
     const saved = upsertServerListing(newListing);
@@ -806,6 +807,10 @@ async function startServer() {
       createdAt: existing?.createdAt || Date.now(),
       updatedAt: Date.now(),
       isSeeded: false,
+      firestoreSynced:
+        typeof incoming.firestoreSynced === 'boolean'
+          ? incoming.firestoreSynced
+          : Boolean(existing?.firestoreSynced),
     };
 
     const saved = upsertServerListing(merged);
